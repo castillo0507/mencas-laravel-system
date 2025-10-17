@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\Faculty;
 use App\Models\Course;
 use App\Models\Department;
+use App\Models\AcademicYear;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -75,6 +76,10 @@ class DashboardController extends Controller
                 'departmentStats' => $departmentStats,
                 'registrationTrends' => $registrationTrends,
                 'studentStatusDistribution' => $studentStatusDistribution,
+                // include lists for report filters
+                'departments' => Department::select('id','name')->orderBy('name')->get(),
+                'courses' => Course::select('id','name','department_id')->orderBy('name')->get(),
+                'academic_years' => AcademicYear::select('id','name')->orderBy('name')->get(),
             ]
         ]);
     }

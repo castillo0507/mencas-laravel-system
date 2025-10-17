@@ -6,6 +6,11 @@ const Reports = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState('overview');
+  const [studentsPanelOpen, setStudentsPanelOpen] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentFilters, setStudentFilters] = useState({ department: '', course: '', year_level: '' });
+  const [studentsError, setStudentsError] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -34,10 +39,62 @@ const Reports = () => {
     }
   };
 
+  const fetchStudents = async (params = {}) => {
+    setStudentsLoading(true);
+    setStudentsError(null);
+    try {
+      // Try API first
+      const response = await axios.get('/api/students', { params });
+      if (response.data && response.data.success) {
+        setStudents(response.data.data || []);
+      } else if (response.data && Array.isArray(response.data)) {
+        // fallback if API returns array
+        setStudents(response.data || []);
+      } else {
+        setStudents([]);
+      }
+    } catch (error) {
+      console.warn('Could not fetch /api/students, falling back to dashboardData.students if available', error);
+      // fallback to dashboardData if present
+      if (dashboardData && Array.isArray(dashboardData.students)) {
+        // apply client-side filters
+        let list = dashboardData.students.slice();
+        if (params.department) list = list.filter(s => String(s.department_id) === String(params.department));
+        if (params.course) list = list.filter(s => String(s.course_id) === String(params.course));
+        if (params.year_level) list = list.filter(s => String(s.year_level) === String(params.year_level));
+        setStudents(list);
+      } else {
+        setStudentsError('No student data available');
+        setStudents([]);
+      }
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
   const exportData = (type) => {
     // Mock export function
     console.log(`Exporting ${type} data...`);
     alert(`${type} data export would start here`);
+  };
+
+  const openStudentsPanel = (preFilter = {}) => {
+    const empty = { department: '', course: '', year_level: '' };
+    const filters = { ...empty, ...preFilter };
+    setStudentFilters(filters);
+    setStudentsPanelOpen(true);
+    setSelectedReport('students');
+    fetchStudents(filters);
+  };
+
+  const applyStudentFilters = () => {
+    fetchStudents(studentFilters);
+  };
+
+  const resetStudentFilters = () => {
+    const empty = { department: '', course: '', year_level: '' };
+    setStudentFilters(empty);
+    fetchStudents(empty);
   };
 
   if (loading) {
@@ -123,9 +180,12 @@ const Reports = () => {
                         <div className="text-xs font-weight-bold text-primary text-uppercase mb-1">
                           Total Students
                         </div>
-                        <div className="h5 mb-0 font-weight-bold text-gray-800">
+                        <button
+                          className="btn btn-link p-0 h5 mb-0 font-weight-bold text-gray-800 text-start"
+                          onClick={() => openStudentsPanel({})}
+                        >
                           {dashboardData.statistics?.totalStudents || 0}
-                        </div>
+                        </button>
                       </div>
                       <div className="col-auto">
                         <i className="fas fa-users fa-2x text-gray-300"></i>
@@ -260,8 +320,16 @@ const Reports = () => {
           {/* Student Report */}
           {selectedReport === 'students' && (
             <div className="card shadow">
-              <div className="card-header py-3">
+              <div className="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 className="m-0 font-weight-bold text-primary">Student Enrollment Report</h6>
+                <div>
+                  <button className="btn btn-sm btn-outline-secondary me-2" onClick={() => setStudentsPanelOpen(!studentsPanelOpen)}>
+                    {studentsPanelOpen ? 'Hide Students' : 'Show Students'}
+                  </button>
+                  <button className="btn btn-sm btn-outline-primary" onClick={() => resetStudentFilters()}>
+                    Reset Filters
+                  </button>
+                </div>
               </div>
               <div className="card-body">
                 <p>Detailed student enrollment and performance analytics would be displayed here.</p>
@@ -269,8 +337,10 @@ const Reports = () => {
                   <div className="col-md-4">
                     <div className="card bg-primary text-white">
                       <div className="card-body">
-                        <h5>Total Enrolled</h5>
-                        <h2>{dashboardData?.statistics?.activeStudents || 0}</h2>
+                        <h5>Total Students</h5>
+                        <button className="btn btn-light text-start w-100 p-2" onClick={() => openStudentsPanel({})}>
+                          <h2 className="mb-0">{dashboardData?.statistics?.activeStudents || 0}</h2>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -291,6 +361,80 @@ const Reports = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Students Panel */}
+                {studentsPanelOpen && (
+                  <div className="mt-4">
+                    <div className="row mb-3">
+                      <div className="col-md-3">
+                        <label className="form-label">Department</label>
+                        <select className="form-select" value={studentFilters.department} onChange={e => setStudentFilters(s => ({ ...s, department: e.target.value }))}>
+                          <option value="">All</option>
+                          {(dashboardData?.departments || []).map(d => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Course</label>
+                        <select className="form-select" value={studentFilters.course} onChange={e => setStudentFilters(s => ({ ...s, course: e.target.value }))}>
+                          <option value="">All</option>
+                          {(dashboardData?.courses || []).map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Year Level</label>
+                        <select className="form-select" value={studentFilters.year_level} onChange={e => setStudentFilters(s => ({ ...s, year_level: e.target.value }))}>
+                          <option value="">All</option>
+                          {[1,2,3,4,5].map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-3 d-flex align-items-end">
+                        <div className="w-100">
+                          <button className="btn btn-primary me-2 w-100 mb-2" onClick={applyStudentFilters} disabled={studentsLoading}>Apply Filters</button>
+                          <button className="btn btn-outline-secondary w-100" onClick={resetStudentFilters} disabled={studentsLoading}>Reset</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="table-responsive">
+                      {studentsLoading ? (
+                        <div className="text-center py-4">Loading students...</div>
+                      ) : studentsError ? (
+                        <div className="text-danger">{studentsError}</div>
+                      ) : students.length === 0 ? (
+                        <div className="text-muted">No students found for the selected filters.</div>
+                      ) : (
+                        <table className="table table-striped">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Department</th>
+                              <th>Course</th>
+                              <th>Year</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {students.map(s => (
+                              <tr key={s.id}>
+                                <td>{s.name || `${s.first_name || ''} ${s.last_name || ''}`}</td>
+                                <td>{s.department?.name || s.department_name || (dashboardData?.departments?.find(d => d.id === s.department_id)?.name) || '-'}</td>
+                                <td>{s.course?.name || s.course_name || (dashboardData?.courses?.find(c => c.id === s.course_id)?.name) || '-'}</td>
+                                <td>{s.academicYear?.name || s.year_level || (dashboardData?.academic_years?.find(y => y.id === s.academic_year_id)?.name) || '-'}</td>
+                                <td>{s.status || '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -1,6 +1,8 @@
 // resources/js/components/Pages/Courses.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
+import toastConfirm from '../../utils/toastConfirm';
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
@@ -16,9 +18,7 @@ const Courses = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
     description: '',
-    credits: '',
     department_id: '',
     is_active: true
   });
@@ -49,9 +49,9 @@ const Courses = () => {
       console.error('Courses API error details:', error.response);
       setCourses([]);
       if (error.response?.status === 401) {
-        alert('Authentication required. Please refresh and login again.');
+        toast.error('Authentication required. Please refresh and login again.');
       } else {
-        alert(`Error loading courses: ${error.response?.data?.message || error.message}`);
+        toast.error(`Error loading courses: ${error.response?.data?.message || error.message}`);
       }
     } finally {
       setLoading(false);
@@ -68,9 +68,9 @@ const Courses = () => {
       console.error('Error fetching departments for courses:', error);
       console.error('Departments API error details:', error.response);
       if (error.response?.status === 401) {
-        alert('Authentication required for departments. Please refresh and login again.');
+        toast.error('Authentication required for departments. Please refresh and login again.');
       } else {
-        alert(`Error loading departments: ${error.response?.data?.message || error.message}`);
+        toast.error(`Error loading departments: ${error.response?.data?.message || error.message}`);
       }
     }
   };
@@ -92,7 +92,17 @@ const Courses = () => {
       fetchCourses();
     } catch (error) {
       if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
+        const errs = error.response.data.errors || {};
+        setErrors(errs);
+        const messages = Object.values(errs).flat();
+        if (messages.length) {
+          toast.error(messages.join('; '));
+        }
+      } else if (error.response?.data?.message) {
+        toast.error(`Error: ${error.response.data.message}`);
+      } else {
+        toast.error('An error occurred while saving the course. See console for details.');
+        console.error('Course save error:', error);
       }
     }
   };
@@ -101,9 +111,7 @@ const Courses = () => {
     setEditingCourse(course);
     setFormData({
       name: course.name,
-      code: course.code,
       description: course.description || '',
-      credits: course.credits,
       department_id: course.department_id,
       is_active: course.is_active
     });
@@ -111,22 +119,22 @@ const Courses = () => {
   };
 
   const handleDelete = async (course) => {
-    if (window.confirm(`Are you sure you want to delete ${course.name}?`)) {
-      try {
-        await axios.delete(`/api/courses/${course.id}`);
-        fetchCourses();
-      } catch (error) {
-        alert(error.response?.data?.message || 'Error deleting course');
-      }
+    const ok = await toastConfirm(`Are you sure you want to delete ${course.name}?`, { okText: 'Delete', cancelText: 'Cancel' });
+    if (!ok) return;
+
+    try {
+      await axios.delete(`/api/courses/${course.id}`);
+      toast.success('Course deleted successfully');
+      fetchCourses();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error deleting course');
     }
   };
 
   const resetForm = () => {
     setFormData({
       name: '',
-      code: '',
       description: '',
-      credits: '',
       department_id: '',
       is_active: true
     });
@@ -222,9 +230,7 @@ const Courses = () => {
                 <table className="table table-bordered">
                   <thead>
                     <tr>
-                      <th>Course Code</th>
                       <th>Course Name</th>
-                      <th>Credits</th>
                       <th>Department</th>
                       <th>Status</th>
                       <th>Actions</th>
@@ -234,9 +240,7 @@ const Courses = () => {
                     {courses.length > 0 ? (
                       courses.map((course) => (
                         <tr key={course.id}>
-                          <td><strong>{course.code}</strong></td>
                           <td>{course.name}</td>
-                          <td>{course.credits}</td>
                           <td>{course.department?.name || 'N/A'}</td>
                           <td>
                             <span className={`badge ${course.is_active ? 'bg-success' : 'bg-secondary'}`}>
@@ -263,7 +267,7 @@ const Courses = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6" className="text-center">
+                        <td colSpan="4" className="text-center">
                           No courses found
                         </td>
                       </tr>
@@ -331,36 +335,7 @@ const Courses = () => {
               </div>
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">Course Code *</label>
-                        <input
-                          type="text"
-                          className={`form-control ${errors.code ? 'is-invalid' : ''}`}
-                          value={formData.code}
-                          onChange={(e) => setFormData({...formData, code: e.target.value})}
-                          required
-                        />
-                        {errors.code && <div className="invalid-feedback">{errors.code[0]}</div>}
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">Credits *</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          className={`form-control ${errors.credits ? 'is-invalid' : ''}`}
-                          value={formData.credits}
-                          onChange={(e) => setFormData({...formData, credits: e.target.value})}
-                          required
-                        />
-                        {errors.credits && <div className="invalid-feedback">{errors.credits[0]}</div>}
-                      </div>
-                    </div>
-                  </div>
+                  {/* Course Code and Credits removed per request */}
                   
                   <div className="row">
                     <div className="col-md-8">

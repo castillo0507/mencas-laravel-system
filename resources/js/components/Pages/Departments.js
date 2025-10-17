@@ -1,6 +1,8 @@
 // resources/js/components/Pages/Departments.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
+import toastConfirm from '../../utils/toastConfirm';
 
 const Departments = () => {
   const [departments, setDepartments] = useState([]);
@@ -26,6 +28,8 @@ const Departments = () => {
     description: '',
     is_active: true
   });
+  const [errors, setErrors] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadDepartments();
@@ -72,8 +76,8 @@ const Departments = () => {
     } catch (error) {
       console.error('=== ERROR LOADING DEPARTMENTS ===', error);
       console.error('Error details:', error.response?.data);
-      setDepartments([]);
-      alert('Failed to load departments: ' + (error.response?.data?.message || error.message));
+  setDepartments([]);
+  toast.error('Failed to load departments: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -89,7 +93,7 @@ const Departments = () => {
       setShowCoursesModal(true);
     } catch (error) {
       console.error('Error loading department courses:', error);
-      alert('Failed to load department courses');
+      toast.error('Failed to load department courses');
     }
   };
 
@@ -118,6 +122,7 @@ const Departments = () => {
       description: '',
       is_active: true
     });
+    setErrors({});
     setShowModal(true);
   };
 
@@ -130,21 +135,42 @@ const Departments = () => {
       description: department.description || '',
       is_active: department.is_active
     });
+    setErrors({});
     setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('Submitting department:', formData);
+    setErrors({});
+    setIsSaving(true);
     
     try {
+      // Normalize code and name
+      const payload = { ...formData };
+      payload.code = (payload.code || '').toString().trim().toUpperCase();
+      payload.name = (payload.name || '').toString().trim();
+
+      // Client-side duplicate check (case-insensitive), exclude current when editing
+      const duplicate = departments.some(d => {
+        if (!d.code) return false;
+        if (editingDepartment && d.id === editingDepartment.id) return false;
+        return d.code.toString().trim().toUpperCase() === payload.code;
+      });
+      if (duplicate) {
+        setIsSaving(false);
+        setErrors({ code: ['The code has already been taken.'] });
+        toast.error('Validation errors: The code has already been taken.');
+        return;
+      }
+
       if (editingDepartment) {
-        await axios.put(`/api/departments/${editingDepartment.id}`, formData);
-        alert('Department updated successfully');
+        await axios.put(`/api/departments/${editingDepartment.id}`, payload);
+        toast.success('Department updated successfully');
       } else {
-        const response = await axios.post('/api/departments', formData);
+        const response = await axios.post('/api/departments', payload);
         console.log('Create response:', response.data);
-        alert('Department created successfully');
+        toast.success('Department created successfully');
       }
       
       setShowModal(false);
@@ -152,61 +178,65 @@ const Departments = () => {
     } catch (error) {
       console.error('Error saving department:', error);
       if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors || {});
         const errorMessages = Object.values(error.response.data.errors).flat();
-        alert('Validation errors:\n' + errorMessages.join('\n'));
+        toast.error('Validation errors: ' + errorMessages.join('; '));
       } else if (error.response?.data?.message) {
-        alert(error.response.data.message);
+        toast.error(error.response.data.message);
       } else {
-        alert('Failed to save department');
+        toast.error('Failed to save department');
       }
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (department) => {
-    if (confirm(`Are you sure you want to delete the department "${department.name}"? This action cannot be undone.`)) {
-      console.log('=== DELETE OPERATION START ===');
-      console.log('Deleting department ID:', department.id);
-      console.log('Current departments count before delete:', departments.length);
+    const ok = await toastConfirm(`Are you sure you want to delete the department "${department.name}"? This action cannot be undone.`, { okText: 'Delete', cancelText: 'Cancel' });
+    if (!ok) return;
+
+    console.log('=== DELETE OPERATION START ===');
+    console.log('Deleting department ID:', department.id);
+    console.log('Current departments count before delete:', departments.length);
+    
+    try {
+      // Delete from server first
+      const response = await axios.delete(`/api/departments/${department.id}`);
+      console.log('Server delete response:', response.data);
       
-      try {
-        // Delete from server first
-        const response = await axios.delete(`/api/departments/${department.id}`);
-        console.log('Server delete response:', response.data);
-        
-        // Then immediately update the UI by removing the item
-        setDepartments(currentDepartments => {
-          console.log('Current departments before filter:', currentDepartments.length);
-          const filtered = currentDepartments.filter(item => {
-            const keep = item.id !== department.id;
-            if (!keep) {
-              console.log('Removing department with ID:', item.id);
-            }
-            return keep;
-          });
-          console.log('Departments after filter:', filtered.length);
-          return filtered;
+      // Then immediately update the UI by removing the item
+      setDepartments(currentDepartments => {
+        console.log('Current departments before filter:', currentDepartments.length);
+        const filtered = currentDepartments.filter(item => {
+          const keep = item.id !== department.id;
+          if (!keep) {
+            console.log('Removing department with ID:', item.id);
+          }
+          return keep;
         });
-        
-        // Force a complete refresh by updating the refresh key
-        console.log('=== FORCING COMPLETE REFRESH ===');
-        setTimeout(() => {
-          setRefreshKey(prev => prev + 1);
-        }, 300);
-        
-        alert('Department deleted successfully');
-        console.log('=== DELETE OPERATION SUCCESS ===');
-        
-      } catch (error) {
-        console.error('=== DELETE OPERATION ERROR ===', error);
-        
-        if (error.response?.status === 404) {
-          alert('Department not found - it may have already been deleted');
-          forceRefresh();
-        } else if (error.response?.data?.message) {
-          alert('Failed to delete department: ' + error.response.data.message);
-        } else {
-          alert('Failed to delete department. Please try again.');
-        }
+        console.log('Departments after filter:', filtered.length);
+        return filtered;
+      });
+      
+      // Force a complete refresh by updating the refresh key
+      console.log('=== FORCING COMPLETE REFRESH ===');
+      setTimeout(() => {
+        setRefreshKey(prev => prev + 1);
+      }, 300);
+      
+      toast.success('Department deleted successfully');
+      console.log('=== DELETE OPERATION SUCCESS ===');
+      
+    } catch (error) {
+      console.error('=== DELETE OPERATION ERROR ===', error);
+      
+      if (error.response?.status === 404) {
+        toast.error('Department not found - it may have already been deleted');
+        forceRefresh();
+      } else if (error.response?.data?.message) {
+        toast.error('Failed to delete department: ' + error.response.data.message);
+      } else {
+        toast.error('Failed to delete department. Please try again.');
       }
     }
   };
@@ -415,23 +445,25 @@ const Departments = () => {
                       <label className="form-label">Department Name *</label>
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${errors.name ? 'is-invalid' : ''}`}
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         placeholder="Enter department name"
                         required
                       />
+                      {errors.name && <div className="invalid-feedback">{errors.name[0]}</div>}
                     </div>
                     <div className="col-12">
                       <label className="form-label">Department Code *</label>
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${errors.code ? 'is-invalid' : ''}`}
                         value={formData.code}
                         onChange={(e) => setFormData({...formData, code: e.target.value})}
                         placeholder="Enter department code (e.g., CS, ENG, MATH)"
                         required
                       />
+                      {errors.code && <div className="invalid-feedback">{errors.code[0]}</div>}
                     </div>
                     <div className="col-12">
                       <label className="form-label">Description</label>
@@ -459,13 +491,18 @@ const Departments = () => {
                     </div>
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    {editingDepartment ? 'Update' : 'Create'} Department
-                  </button>
+                <div className="modal-footer d-flex flex-column">
+                  <div className="w-100 d-flex justify-content-end gap-2">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                      {editingDepartment ? 'Update' : 'Create'} Department
+                    </button>
+                  </div>
+                  {isSaving && (
+                    <div className="w-100 text-center mt-2 text-muted">Saving...</div>
+                  )}
                 </div>
               </form>
             </div>

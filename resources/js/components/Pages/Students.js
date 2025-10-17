@@ -1,65 +1,84 @@
 // resources/js/components/Pages/Students.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
+import toastConfirm from '../../utils/toastConfirm';
 
 const Students = () => {
   const [students, setStudents] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterCourse, setFilterCourse] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
   const [formData, setFormData] = useState({
+    course_id: '',
+    department_id: '',
+    academic_year_id: '',
     student_id: '',
     first_name: '',
+    middle_name: '',
     last_name: '',
+    extension_name: '',
     email: '',
     phone: '',
     date_of_birth: '',
     enrollment_date: '',
     status: 'active',
-    department_id: ''
+    archived: false
   });
 
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchStudents();
-    fetchDepartments();
-  }, [currentPage, searchTerm, filterDepartment, filterStatus]);
+    fetchCourses();
+  }, [currentPage, searchTerm, filterCourse, filterStatus]);
 
   const fetchStudents = async () => {
     try {
       const params = {
         page: currentPage,
         search: searchTerm,
-        department_id: filterDepartment,
+        course_id: filterCourse,
         status: filterStatus
       };
-      
+
       const response = await axios.get('/api/students', { params });
-      setStudents(response.data.data || []);
-      setTotalPages(response.data.meta?.last_page || 1);
+      // be defensive: support older responses and avoid TypeErrors when server returns error
+      const payload = response?.data ?? response;
+      const list = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+      const studentsData = list.map((student) => ({
+        ...student,
+        course_name: student.course?.name || 'N/A',
+      }));
+
+      setStudents(studentsData);
+      setTotalPages(payload?.meta?.last_page || 1);
     } catch (error) {
       console.error('Error fetching students:', error);
+      // show a helpful alert when fetch fails
+  const message = error.response?.data?.message || error.message || 'Error fetching students';
+  toast.error(message);
       setStudents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchDepartments = async () => {
+  const fetchCourses = async () => {
     try {
-      const response = await axios.get('/api/departments');
-      setDepartments(response.data.data || response.data || []);
+      const response = await axios.get('/api/courses');
+      setCourses(response.data.data || response.data || []);
     } catch (error) {
-      console.error('Error fetching departments:', error);
-      setDepartments([]);
+      console.error('Error fetching courses:', error);
+      setCourses([]);
+      toast.error('Error fetching courses');
     }
   };
 
@@ -69,22 +88,58 @@ const Students = () => {
     setErrors({});
 
     try {
+  const payload = { ...formData };
+      // normalize date fields to YYYY-MM-DD for server and HTML date inputs
+      if (payload.date_of_birth) payload.date_of_birth = normalizeDate(payload.date_of_birth);
+      if (payload.enrollment_date) payload.enrollment_date = normalizeDate(payload.enrollment_date);
+      // Auto-generate student_id for new students if empty
+      if (!editingStudent) {
+        if (!payload.student_id) {
+          const year = new Date().getFullYear();
+          const suffix = String(Date.now()).slice(-6);
+          payload.student_id = `S-${year}-${suffix}`;
+        }
+      }
+
+      // convert empty/non-numeric academic_year_id to null so Laravel's nullable|exists doesn't attempt a DB lookup on bad values
+      if (!payload.academic_year_id || isNaN(Number(payload.academic_year_id))) {
+        payload.academic_year_id = null;
+      }
+
+      // Ensure department_id is set. Backend requires department_id.
+      if (!payload.department_id && payload.course_id) {
+        const selectedCourse = courses.find(c => String(c.id) === String(payload.course_id));
+        if (selectedCourse && selectedCourse.department_id) {
+          payload.department_id = selectedCourse.department_id;
+        }
+      }
+
+      // include department_id even if empty to make server validation errors clearer
+      if (!payload.department_id) payload.department_id = '';
+
       if (editingStudent) {
-        await axios.put(`/api/students/${editingStudent.id}`, formData);
-        alert('Student updated successfully!');
+        await axios.put(`/api/students/${editingStudent.id}`, payload);
+        toast.success('Student updated successfully!');
       } else {
-        await axios.post('/api/students', formData);
-        alert('Student created successfully!');
+        await axios.post('/api/students', payload);
+        toast.success('Student created successfully!');
       }
       
       setShowModal(false);
       resetForm();
       fetchStudents();
     } catch (error) {
-      if (error.response?.status === 422) {
-        setErrors(error.response.data.errors || {});
+      console.error('Error saving student:', error);
+      if (error.response) {
+        if (error.response.status === 422) {
+          setErrors(error.response.data.errors || {});
+        } else if (error.response.data?.message) {
+          toast.error(error.response.data.message);
+        } else {
+          toast.error(`Server error: ${error.response.status}`);
+        }
       } else {
-        alert('An error occurred. Please try again.');
+        toast.error(`Network error: ${error.message}`);
       }
     } finally {
       setLoading(false);
@@ -94,46 +149,80 @@ const Students = () => {
   const handleEdit = (student) => {
     setEditingStudent(student);
     setFormData({
-      student_id: student.student_id,
-      first_name: student.first_name,
-      last_name: student.last_name,
-      email: student.email,
+      course_id: student.course_id || '',
+      academic_year_id: student.academic_year_id || '',
+      student_id: student.student_id || '',
+      first_name: student.first_name || '',
+      middle_name: student.middle_name || '',
+      last_name: student.last_name || '',
+      extension_name: student.extension_name || '',
+      email: student.email || '',
       phone: student.phone || '',
-      date_of_birth: student.date_of_birth || '',
-      enrollment_date: student.enrollment_date,
-      status: student.status,
-      department_id: student.department_id
+      // convert ISO timestamps like 2023-08-07T00:00:00.000000Z to YYYY-MM-DD
+      date_of_birth: student.date_of_birth ? normalizeDate(student.date_of_birth) : '',
+      enrollment_date: student.enrollment_date ? normalizeDate(student.enrollment_date) : '',
+      status: student.status || 'active',
+      archived: !!student.archived
     });
     setShowModal(true);
   };
 
+  // normalize various datetime formats to YYYY-MM-DD (works with Date, ISO strings, or already YYYY-MM-DD)
+  const normalizeDate = (value) => {
+    if (!value) return '';
+    // If already in YYYY-MM-DD format, return directly
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    // Try to parse with Date
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    // fallback: strip time portion if present
+    const m = value.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  };
+
   const resetForm = () => {
     setFormData({
-      student_id: '',
+      course_id: '',
+      academic_year_id: '',
+      // pre-generate student id for new student
+      student_id: generateStudentId(),
       first_name: '',
+      middle_name: '',
       last_name: '',
+      extension_name: '',
       email: '',
       phone: '',
       date_of_birth: '',
       enrollment_date: '',
       status: 'active',
-      department_id: ''
+      archived: false
     });
     setEditingStudent(null);
     setErrors({});
   };
 
+  const generateStudentId = () => {
+    const year = new Date().getFullYear();
+    // use a timestamp suffix to reduce collisions
+    const suffix = String(Date.now()).slice(-6);
+    return `S-${year}-${suffix}`;
+  };
+
   const handleDelete = async (student) => {
-    if (!confirm(`Are you sure you want to delete ${student.first_name} ${student.last_name}?`)) {
-      return;
-    }
+    const ok = await toastConfirm(`Are you sure you want to delete ${student.first_name} ${student.last_name}?`, { okText: 'OK', cancelText: 'Cancel' });
+    if (!ok) return;
 
     try {
       await axios.delete(`/api/students/${student.id}`);
-      alert('Student deleted successfully!');
+      toast.success('Student deleted successfully!');
       fetchStudents();
     } catch (error) {
-      alert('Error deleting student');
+      toast.error(error.response?.data?.message || 'Error deleting student');
     }
   };
 
@@ -183,15 +272,15 @@ const Students = () => {
                 <div className="col-md-3">
                   <select
                     className="form-select"
-                    value={filterDepartment}
+                    value={filterCourse}
                     onChange={(e) => {
-                      setFilterDepartment(e.target.value);
+                      setFilterCourse(e.target.value);
                       setCurrentPage(1);
                     }}
                   >
-                    <option value="">All Departments</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      <option value="">All Courses</option>
+                    {courses.map(course => (
+                      <option key={course.id} value={course.id}>{course.name}</option>
                     ))}
                   </select>
                 </div>
@@ -222,7 +311,7 @@ const Students = () => {
                       <th>Name</th>
                       <th>Email</th>
                       <th>Phone</th>
-                      <th>Department</th>
+                      <th>Course</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -235,7 +324,7 @@ const Students = () => {
                           <td>{student.first_name} {student.last_name}</td>
                           <td>{student.email}</td>
                           <td>{student.phone || 'N/A'}</td>
-                          <td>{student.department?.name || 'N/A'}</td>
+                          <td>{student.course_name}</td>
                           <td>
                             <span className={`badge ${
                               student.status === 'active' ? 'bg-success' :
@@ -345,10 +434,43 @@ const Students = () => {
                       className={`form-control ${errors.student_id ? 'is-invalid' : ''}`}
                       value={formData.student_id}
                       onChange={(e) => setFormData({...formData, student_id: e.target.value})}
+                      readOnly={!editingStudent}
                       required
                       placeholder="S-2024-01"
                     />
                     {errors.student_id && <div className="invalid-feedback">{errors.student_id[0]}</div>}
+                  </div>
+
+                  {/* Removed ID, User ID, Course ID inputs per request. Course should be selected via course select when available. */}
+
+                  <div className="row">
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Academic Year ID</label>
+                      <input
+                        type="text"
+                        className={`form-control ${errors.academic_year_id ? 'is-invalid' : ''}`}
+                        value={formData.academic_year_id}
+                        onChange={(e) => setFormData({...formData, academic_year_id: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Middle Name</label>
+                      <input
+                        type="text"
+                        className={`form-control ${errors.middle_name ? 'is-invalid' : ''}`}
+                        value={formData.middle_name}
+                        onChange={(e) => setFormData({...formData, middle_name: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Extension Name</label>
+                      <input
+                        type="text"
+                        className={`form-control ${errors.extension_name ? 'is-invalid' : ''}`}
+                        value={formData.extension_name}
+                        onChange={(e) => setFormData({...formData, extension_name: e.target.value})}
+                      />
+                    </div>
                   </div>
 
                   <div className="row">
@@ -432,22 +554,33 @@ const Students = () => {
                     </div>
                   </div>
 
+                  <div className="form-check form-switch mb-3">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="archivedSwitch"
+                      checked={!!formData.archived}
+                      onChange={(e) => setFormData({...formData, archived: e.target.checked})}
+                    />
+                    <label className="form-check-label" htmlFor="archivedSwitch">Archived Status</label>
+                  </div>
+
                   <div className="row">
                     <div className="col-md-6">
                       <div className="mb-3">
-                        <label className="form-label">Department *</label>
+                        <label className="form-label">Course *</label>
                         <select
-                          className={`form-select ${errors.department_id ? 'is-invalid' : ''}`}
-                          value={formData.department_id}
-                          onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                          className={`form-select ${errors.course_id ? 'is-invalid' : ''}`}
+                          value={formData.course_id}
+                          onChange={(e) => setFormData({...formData, course_id: e.target.value})}
                           required
                         >
-                          <option value="">Select Department</option>
-                          {departments.map(dept => (
-                            <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>
+                          <option value="">Select Course</option>
+                          {courses.map(course => (
+                            <option key={course.id} value={course.id}>{course.name}</option>
                           ))}
                         </select>
-                        {errors.department_id && <div className="invalid-feedback">{errors.department_id[0]}</div>}
+                        {errors.course_id && <div className="invalid-feedback">{errors.course_id[0]}</div>}
                       </div>
                     </div>
                     <div className="col-md-6">
@@ -461,7 +594,6 @@ const Students = () => {
                         >
                           <option value="active">Active</option>
                           <option value="inactive">Inactive</option>
-                          <option value="graduated">Graduated</option>
                           <option value="suspended">Suspended</option>
                         </select>
                         {errors.status && <div className="invalid-feedback">{errors.status[0]}</div>}

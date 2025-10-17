@@ -64,9 +64,7 @@ class CourseController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'code' => 'required|string|unique:courses|max:20',
             'description' => 'nullable|string|max:1000',
-            'credits' => 'required|integer|min:1|max:10',
             'department_id' => 'required|exists:departments,id',
             'is_active' => 'boolean'
         ]);
@@ -78,7 +76,29 @@ class CourseController extends Controller
             ], 422);
         }
 
-        $course = Course::create($request->all());
+        // Prepare data and generate a fallback unique code if none provided by the client
+        $data = $request->only(['name', 'description', 'department_id', 'is_active']);
+
+        if ($request->filled('code')) {
+            $data['code'] = $request->input('code');
+        } else {
+            // generate a short unique code based on name + timestamp (keeps uniqueness practical)
+            $base = preg_replace('/[^A-Za-z0-9]/', '', strtoupper(substr($request->input('name'), 0, 10)));
+            $candidate = $base . '-' . time();
+            // ensure uniqueness (simple loop, should usually succeed immediately)
+            $i = 0;
+            while (\App\Models\Course::where('code', $candidate)->exists()) {
+                $i++;
+                $candidate = $base . '-' . time() . '-' . $i;
+                if ($i > 5) break; // safety
+            }
+            $data['code'] = $candidate;
+        }
+
+        // credits are optional now; default to 3 if not provided
+        $data['credits'] = $request->input('credits', 3);
+
+        $course = Course::create($data);
         $course->load('department');
 
         return response()->json([
@@ -108,9 +128,7 @@ class CourseController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'code' => 'required|string|unique:courses,code,' . $id . '|max:20',
             'description' => 'nullable|string|max:1000',
-            'credits' => 'required|integer|min:1|max:10',
             'department_id' => 'required|exists:departments,id',
             'is_active' => 'boolean'
         ]);

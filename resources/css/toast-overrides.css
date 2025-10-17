@@ -1,0 +1,29 @@
+/* Center toast container and style progress bar similar to screenshot */
+.Toastify__toast-container--top-center {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  max-width: 540px !important;
+  padding: 0 12px !important;
+}
+
+.Toastify__toast--default {
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+/* progress bar style */
+.Toastify__progress-bar {
+  height: 6px !important;
+  border-radius: 4px !important;
+}
+
+/* success icon alignment */
+.Toastify__toast-body {
+  display: flex;
+  align-items: center;
+}
+
+.Toastify__toast-body .Toastify__toast-icon {
+  margin-right: 10px;
+}

@@ -12,18 +12,18 @@ class Student extends Model
     protected $fillable = [
         'student_id',
         'first_name',
+        'middle_name',
         'last_name',
+        'extension_name',
         'email',
         'phone',
         'date_of_birth',
         'enrollment_date',
         'status',
-        'department_id'
-    ];
-
-    protected $casts = [
-        'date_of_birth' => 'date',
-        'enrollment_date' => 'date',
+        'archived',
+        'department_id',
+        'course_id',
+        'academic_year_id',
     ];
 
     public function department()
@@ -31,8 +31,13 @@ class Student extends Model
         return $this->belongsTo(Department::class);
     }
 
-    public function getFullNameAttribute()
+    public function course()
     {
-        return $this->first_name . ' ' . $this->last_name;
+        return $this->belongsTo(Course::class);
+    }
+
+    public function academicYear()
+    {
+        return $this->belongsTo(AcademicYear::class);
     }
 }

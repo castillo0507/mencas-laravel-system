@@ -1,6 +1,8 @@
 // resources/js/components/Pages/Faculty.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
+import toastConfirm from '../../utils/toastConfirm';
 
 const Faculty = () => {
   const [faculty, setFaculty] = useState([]);
@@ -78,11 +80,11 @@ const Faculty = () => {
         console.log('Create response:', response);
       }
       
-      setShowModal(false);
-      setEditingFaculty(null);
-      resetForm();
-      fetchFaculty();
-      alert('Faculty member saved successfully!');
+  setShowModal(false);
+  setEditingFaculty(null);
+  resetForm();
+  fetchFaculty();
+  toast.success('Faculty member saved successfully!');
     } catch (error) {
       console.error('Error saving faculty:', error);
       console.error('Error response:', error.response);
@@ -90,7 +92,7 @@ const Faculty = () => {
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       } else {
-        alert(`Error: ${error.response?.data?.message || error.message}`);
+        toast.error(`Error: ${error.response?.data?.message || error.message}`);
       }
     }
   };
@@ -111,14 +113,15 @@ const Faculty = () => {
   };
 
   const handleDelete = async (facultyMember) => {
-    if (window.confirm(`Are you sure you want to delete ${facultyMember.first_name} ${facultyMember.last_name}?`)) {
-      try {
-        await axios.delete(`/api/faculty/${facultyMember.id}`);
-        fetchFaculty();
-      } catch (error) {
-        console.error('Error deleting faculty member:', error);
-        alert(`Error: ${error.response?.data?.message || error.message}`);
-      }
+    const ok = await toastConfirm(`Are you sure you want to delete ${facultyMember.first_name} ${facultyMember.last_name}?`, { okText: 'Delete', cancelText: 'Cancel' });
+    if (!ok) return;
+    try {
+      await axios.delete(`/api/faculty/${facultyMember.id}`);
+      toast.success('Faculty member deleted');
+      fetchFaculty();
+    } catch (error) {
+      console.error('Error deleting faculty member:', error);
+      toast.error(`Error: ${error.response?.data?.message || error.message}`);
     }
   };
 

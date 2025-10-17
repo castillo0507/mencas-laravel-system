@@ -3,10 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\{
-    DashboardController, StudentController, FacultyController,
+    DashboardController, FacultyController,
     CourseController, DepartmentController, AcademicYearController,
     ProfileController
 };
+use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\AuthController;
 
 /*
