@@ -30,10 +30,10 @@ const Courses = () => {
     fetchDepartments();
   }, [currentPage, searchTerm, filterDepartment, filterStatus]);
 
-  const fetchCourses = async () => {
+  const fetchCourses = async (page = currentPage) => {
     try {
       const params = {
-        page: currentPage,
+        page,
         search: searchTerm,
         department_id: filterDepartment,
         status: filterStatus
@@ -42,8 +42,10 @@ const Courses = () => {
       console.log('Fetching courses with params:', params);
       const response = await axios.get('/api/courses', { params });
       console.log('Courses API response:', response.data);
-      setCourses(response.data.data || []);
-      setTotalPages(response.data.meta?.last_page || 1);
+  setCourses(response.data.data || []);
+  setTotalPages(response.data.meta?.last_page || 1);
+  // keep currentPage in sync with the page we requested
+  setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching courses:', error);
       console.error('Courses API error details:', error.response);
@@ -80,16 +82,30 @@ const Courses = () => {
     setErrors({});
     
     try {
+      let response;
       if (editingCourse) {
-        await axios.put(`/api/courses/${editingCourse.id}`, formData);
+        response = await axios.put(`/api/courses/${editingCourse.id}`, formData);
       } else {
-        await axios.post('/api/courses', formData);
+        response = await axios.post('/api/courses', formData);
       }
-      
+
+      const saved = response?.data?.data || response?.data || null;
+
       setShowModal(false);
       setEditingCourse(null);
       resetForm();
-      fetchCourses();
+
+      if (editingCourse) {
+        // update the course in-place if it's visible on the current page
+        if (saved && saved.id) {
+          setCourses((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+        }
+        toast.success('Course updated successfully');
+      } else {
+        // after creating a new course, show page 1 and reload so the new item appears
+        toast.success('Course created successfully');
+        await fetchCourses(1);
+      }
     } catch (error) {
       if (error.response?.data?.errors) {
         const errs = error.response.data.errors || {};

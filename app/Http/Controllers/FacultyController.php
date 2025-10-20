@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Faculty;
 use App\Models\Department;
+use App\Models\Archive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class FacultyController extends Controller
 {
@@ -37,6 +39,21 @@ class FacultyController extends Controller
         // Filter by status
         if ($request->has('status') && $request->status !== '') {
             $query->where('is_active', $request->status === 'active');
+        }
+
+        // Archived filter: by default exclude archived records. Use ?archived=1 to show archived only.
+        if ($request->has('archived')) {
+            if ($request->archived == '1' || $request->archived === 1 || $request->archived === true) {
+                $query->where('archived', true);
+            } else {
+                $query->where(function ($q) {
+                    $q->whereNull('archived')->orWhere('archived', false);
+                });
+            }
+        } else {
+            $query->where(function ($q) {
+                $q->whereNull('archived')->orWhere('archived', false);
+            });
         }
 
         // Sorting
@@ -148,6 +165,54 @@ class FacultyController extends Controller
         return response()->json([
             'message' => 'Faculty member deleted successfully'
         ]);
+    }
+
+    /**
+     * Partial update to toggle archived flag for faculty (frontend uses this)
+     */
+    public function archive(Request $request, $id)
+    {
+        $faculty = Faculty::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'archived' => 'required|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $faculty->update(['archived' => $request->archived]);
+
+            if ($request->archived) {
+                Archive::firstOrCreate([
+                    'resource_type' => 'faculty',
+                    'resource_id' => $faculty->id,
+                ], [
+                    'title' => trim(($faculty->first_name ?? '') . ' ' . ($faculty->last_name ?? '')) ?: null,
+                    'data' => $faculty->toArray(),
+                ]);
+            } else {
+                Archive::where('resource_type', 'faculty')
+                    ->where('resource_id', $faculty->id)
+                    ->delete();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Faculty archive state updated',
+                'data' => $faculty
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Archive update failed', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**

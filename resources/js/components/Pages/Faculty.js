@@ -1,5 +1,6 @@
 // resources/js/components/Pages/Faculty.js
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import toastConfirm from '../../utils/toastConfirm';
@@ -98,18 +99,7 @@ const Faculty = () => {
   };
 
   const handleEdit = (facultyMember) => {
-    setEditingFaculty(facultyMember);
-    setFormData({
-      employee_id: facultyMember.employee_id,
-      first_name: facultyMember.first_name,
-      last_name: facultyMember.last_name,
-      email: facultyMember.email,
-      phone: facultyMember.phone || '',
-      position: facultyMember.position,
-      department_id: facultyMember.department_id,
-      is_active: facultyMember.is_active
-    });
-    setShowModal(true);
+    navigate(`/faculty/${facultyMember.id}/edit`);
   };
 
   const handleDelete = async (facultyMember) => {
@@ -122,6 +112,21 @@ const Faculty = () => {
     } catch (error) {
       console.error('Error deleting faculty member:', error);
       toast.error(`Error: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  const handleArchive = async (facultyMember) => {
+    const ok = await toastConfirm(`Are you sure you want to archive ${facultyMember.first_name} ${facultyMember.last_name}?`, { okText: 'Archive', cancelText: 'Cancel' });
+    if (!ok) return;
+
+    try {
+  // Use lightweight archive endpoint to avoid triggering full-update validation
+  await axios.patch(`/api/faculty/${facultyMember.id}/archive`, { archived: true });
+      toast.success('Faculty member archived');
+      fetchFaculty();
+    } catch (error) {
+      console.error('Error archiving faculty member:', error);
+      toast.error(error.response?.data?.message || 'Error archiving faculty member');
     }
   };
 
@@ -139,11 +144,7 @@ const Faculty = () => {
     setErrors({});
   };
 
-  const handleAddNew = () => {
-    setEditingFaculty(null);
-    resetForm();
-    setShowModal(true);
-  };
+  const navigate = useNavigate();
 
 
 
@@ -166,7 +167,7 @@ const Faculty = () => {
               <h1 className="h3 mb-0 text-gray-800">Faculty Members</h1>
               <p className="mb-0 text-muted"></p>
             </div>
-            <div className="d-flex gap-2">
+              <div className="d-flex gap-2">
               <div className="btn-group" role="group">
                 <button 
                   className={`btn ${viewMode === 'cards' ? 'btn-primary' : 'btn-outline-primary'}`}
@@ -183,10 +184,14 @@ const Faculty = () => {
                   <i className="fas fa-table"></i>
                 </button>
               </div>
-              <button className="btn btn-success" onClick={handleAddNew}>
+              <button className="btn btn-success" onClick={() => navigate('/faculty/create')}>
                 <i className="fas fa-plus me-2"></i>
                 Add Faculty Member
               </button>
+              <a href="/archives" className="btn btn-outline-secondary">
+                <i className="fas fa-archive me-2"></i>
+                Archive
+              </a>
             </div>
           </div>
 
@@ -290,12 +295,21 @@ const Faculty = () => {
                           <span className={`badge ${member.is_active ? 'bg-success' : 'bg-secondary'}`}>
                             {member.is_active ? 'Active' : 'Inactive'}
                           </span>
-                          <button 
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => handleEdit(member)}
-                          >
-                            View Profile
-                          </button>
+                          <div className="btn-group">
+                            <button 
+                              className="btn btn-outline-primary btn-sm"
+                              onClick={() => handleEdit(member)}
+                            >
+                              View Profile
+                            </button>
+                            <button 
+                              className="btn btn-outline-secondary btn-sm"
+                              onClick={() => handleArchive(member)}
+                              title="Archive"
+                            >
+                              <i className="fas fa-archive"></i>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -356,6 +370,13 @@ const Faculty = () => {
                                   onClick={() => handleDelete(member)}
                                 >
                                   <i className="fas fa-trash"></i>
+                                </button>
+                                <button 
+                                  className="btn btn-sm btn-outline-secondary"
+                                  onClick={() => handleArchive(member)}
+                                  title="Archive"
+                                >
+                                  <i className="fas fa-archive"></i>
                                 </button>
                               </div>
                             </td>

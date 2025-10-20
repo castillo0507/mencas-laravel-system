@@ -5,13 +5,70 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Student;
+use App\Models\Archive;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class StudentController extends Controller
 {
     public function index()
     {
-        $students = Student::with(['department', 'course', 'academicYear'])->get();
-        return response()->json($students);
+        // Support filtering, pagination and exclude archived by default
+        $request = request();
+        $query = Student::with(['department', 'course', 'academicYear']);
+
+        // Search
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('student_id', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by course
+        if ($request->has('course_id') && $request->course_id !== '') {
+            $query->where('course_id', $request->course_id);
+        }
+
+        // Filter by status
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+
+        // Archived filter: by default exclude archived items. Use ?archived=1 to fetch archived only, ?archived=0 to fetch only non-archived.
+        if ($request->has('archived')) {
+            if ($request->archived == '1' || $request->archived === 1 || $request->archived === true) {
+                $query->where('archived', true);
+            } else {
+                // archived=0 or falsy -> only non-archived
+                $query->where(function ($q) {
+                    $q->whereNull('archived')->orWhere('archived', false);
+                });
+            }
+        } else {
+            // Default: hide archived records
+            $query->where(function ($q) {
+                $q->whereNull('archived')->orWhere('archived', false);
+            });
+        }
+
+        $perPage = $request->get('per_page', 15);
+        $students = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return response()->json([
+            'data' => $students->items(),
+            'meta' => [
+                'current_page' => $students->currentPage(),
+                'from' => $students->firstItem(),
+                'last_page' => $students->lastPage(),
+                'per_page' => $students->perPage(),
+                'to' => $students->lastItem(),
+                'total' => $students->total(),
+            ]
+        ]);
     }
 
     public function store(Request $request)
@@ -33,7 +90,20 @@ class StudentController extends Controller
             'academic_year_id' => 'nullable|exists:academic_years,id',
         ]);
 
-        $student = Student::create($validated);
+    // Default academic_year_id to the active academic year if available and not provided
+    if ((empty($validated['academic_year_id']) || $validated['academic_year_id'] === null) && Schema::hasTable('academic_years')) {
+        // try to pick the active one
+        $active = DB::table('academic_years')->where('active', true)->orWhere('is_active', true)->first();
+        if ($active) {
+            $validated['academic_year_id'] = $active->id;
+        }
+    }
+
+    // Only persist columns that exist in the students table to avoid SQL errors
+    $columns = Schema::getColumnListing('students');
+    $data = array_intersect_key($validated, array_flip($columns));
+
+    $student = Student::create($data);
 
         return response()->json([
             'message' => 'Student added successfully.',
@@ -68,7 +138,11 @@ class StudentController extends Controller
             'academic_year_id' => 'nullable|exists:academic_years,id',
         ]);
 
-        $student->update($validated);
+    // Only update columns that exist in the students table
+    $columns = Schema::getColumnListing('students');
+    $data = array_intersect_key($validated, array_flip($columns));
+
+    $student->update($data);
 
         return response()->json([
             'message' => 'Student updated successfully.',
@@ -82,5 +156,51 @@ class StudentController extends Controller
         $student->delete();
 
         return response()->json(['message' => 'Student deleted successfully.']);
+    }
+
+    /**
+     * Partially update archived flag (used by frontend to toggle archive state)
+     */
+    public function archive(Request $request, $id)
+    {
+        $student = Student::findOrFail($id);
+
+        $validated = $request->validate([
+            'archived' => 'required|boolean',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Only update archived column if it exists in the table
+            if (Schema::hasColumn('students', 'archived')) {
+                $student->update(['archived' => $validated['archived']]);
+            }
+
+            if ($validated['archived']) {
+                // create archive record if not exists
+                Archive::firstOrCreate([
+                    'resource_type' => 'students',
+                    'resource_id' => $student->id,
+                ], [
+                    'title' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')) ?: null,
+                    'data' => $student->toArray(),
+                ]);
+            } else {
+                // remove any archive records for this resource when unarchiving
+                Archive::where('resource_type', 'students')
+                    ->where('resource_id', $student->id)
+                    ->delete();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Student archive state updated',
+                'data' => $student,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Archive update failed', 'error' => $e->getMessage()], 500);
+        }
     }
 }

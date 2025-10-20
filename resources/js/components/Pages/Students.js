@@ -1,5 +1,6 @@
 // resources/js/components/Pages/Students.js
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import toastConfirm from '../../utils/toastConfirm';
@@ -8,32 +9,14 @@ const Students = () => {
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingStudent, setEditingStudent] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
-  const [formData, setFormData] = useState({
-    course_id: '',
-    department_id: '',
-    academic_year_id: '',
-    student_id: '',
-    first_name: '',
-    middle_name: '',
-    last_name: '',
-    extension_name: '',
-    email: '',
-    phone: '',
-    date_of_birth: '',
-    enrollment_date: '',
-    status: 'active',
-    archived: false
-  });
-
   const [errors, setErrors] = useState({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchStudents();
@@ -42,12 +25,18 @@ const Students = () => {
 
   const fetchStudents = async () => {
     try {
-      const params = {
-        page: currentPage,
-        search: searchTerm,
-        course_id: filterCourse,
-        status: filterStatus
-      };
+      const params = { page: currentPage };
+
+      if (searchTerm && searchTerm.trim() !== '') {
+        params.search = searchTerm;
+      }
+      // Only send course/status when a specific filter is selected. Empty string means 'All'.
+      if (filterCourse && String(filterCourse).trim() !== '') {
+        params.course_id = filterCourse;
+      }
+      if (filterStatus && String(filterStatus).trim() !== '') {
+        params.status = filterStatus;
+      }
 
       const response = await axios.get('/api/students', { params });
       // be defensive: support older responses and avoid TypeErrors when server returns error
@@ -82,136 +71,14 @@ const Students = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrors({});
-
-    try {
-  const payload = { ...formData };
-      // normalize date fields to YYYY-MM-DD for server and HTML date inputs
-      if (payload.date_of_birth) payload.date_of_birth = normalizeDate(payload.date_of_birth);
-      if (payload.enrollment_date) payload.enrollment_date = normalizeDate(payload.enrollment_date);
-      // Auto-generate student_id for new students if empty
-      if (!editingStudent) {
-        if (!payload.student_id) {
-          const year = new Date().getFullYear();
-          const suffix = String(Date.now()).slice(-6);
-          payload.student_id = `S-${year}-${suffix}`;
-        }
-      }
-
-      // convert empty/non-numeric academic_year_id to null so Laravel's nullable|exists doesn't attempt a DB lookup on bad values
-      if (!payload.academic_year_id || isNaN(Number(payload.academic_year_id))) {
-        payload.academic_year_id = null;
-      }
-
-      // Ensure department_id is set. Backend requires department_id.
-      if (!payload.department_id && payload.course_id) {
-        const selectedCourse = courses.find(c => String(c.id) === String(payload.course_id));
-        if (selectedCourse && selectedCourse.department_id) {
-          payload.department_id = selectedCourse.department_id;
-        }
-      }
-
-      // include department_id even if empty to make server validation errors clearer
-      if (!payload.department_id) payload.department_id = '';
-
-      if (editingStudent) {
-        await axios.put(`/api/students/${editingStudent.id}`, payload);
-        toast.success('Student updated successfully!');
-      } else {
-        await axios.post('/api/students', payload);
-        toast.success('Student created successfully!');
-      }
-      
-      setShowModal(false);
-      resetForm();
-      fetchStudents();
-    } catch (error) {
-      console.error('Error saving student:', error);
-      if (error.response) {
-        if (error.response.status === 422) {
-          setErrors(error.response.data.errors || {});
-        } else if (error.response.data?.message) {
-          toast.error(error.response.data.message);
-        } else {
-          toast.error(`Server error: ${error.response.status}`);
-        }
-      } else {
-        toast.error(`Network error: ${error.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   const handleEdit = (student) => {
-    setEditingStudent(student);
-    setFormData({
-      course_id: student.course_id || '',
-      academic_year_id: student.academic_year_id || '',
-      student_id: student.student_id || '',
-      first_name: student.first_name || '',
-      middle_name: student.middle_name || '',
-      last_name: student.last_name || '',
-      extension_name: student.extension_name || '',
-      email: student.email || '',
-      phone: student.phone || '',
-      // convert ISO timestamps like 2023-08-07T00:00:00.000000Z to YYYY-MM-DD
-      date_of_birth: student.date_of_birth ? normalizeDate(student.date_of_birth) : '',
-      enrollment_date: student.enrollment_date ? normalizeDate(student.enrollment_date) : '',
-      status: student.status || 'active',
-      archived: !!student.archived
-    });
-    setShowModal(true);
+    // navigate to edit page for the student
+    navigate(`/students/${student.id}/edit`);
   };
 
-  // normalize various datetime formats to YYYY-MM-DD (works with Date, ISO strings, or already YYYY-MM-DD)
-  const normalizeDate = (value) => {
-    if (!value) return '';
-    // If already in YYYY-MM-DD format, return directly
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-    // Try to parse with Date
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    }
-    // fallback: strip time portion if present
-    const m = value.match(/(\d{4}-\d{2}-\d{2})/);
-    return m ? m[1] : '';
-  };
-
-  const resetForm = () => {
-    setFormData({
-      course_id: '',
-      academic_year_id: '',
-      // pre-generate student id for new student
-      student_id: generateStudentId(),
-      first_name: '',
-      middle_name: '',
-      last_name: '',
-      extension_name: '',
-      email: '',
-      phone: '',
-      date_of_birth: '',
-      enrollment_date: '',
-      status: 'active',
-      archived: false
-    });
-    setEditingStudent(null);
-    setErrors({});
-  };
-
-  const generateStudentId = () => {
-    const year = new Date().getFullYear();
-    // use a timestamp suffix to reduce collisions
-    const suffix = String(Date.now()).slice(-6);
-    return `S-${year}-${suffix}`;
-  };
+  
 
   const handleDelete = async (student) => {
     const ok = await toastConfirm(`Are you sure you want to delete ${student.first_name} ${student.last_name}?`, { okText: 'OK', cancelText: 'Cancel' });
@@ -223,6 +90,21 @@ const Students = () => {
       fetchStudents();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error deleting student');
+    }
+  };
+
+  const handleArchive = async (student) => {
+    const ok = await toastConfirm(`Are you sure you want to archive ${student.first_name} ${student.last_name}?`, { okText: 'Archive', cancelText: 'Cancel' });
+    if (!ok) return;
+
+    try {
+  // Use lightweight archive endpoint to avoid triggering full-update validation
+  await axios.patch(`/api/students/${student.id}/archive`, { archived: true });
+      toast.success('Student archived');
+      fetchStudents();
+    } catch (error) {
+      console.error('Error archiving student:', error);
+      toast.error(error.response?.data?.message || 'Error archiving student');
     }
   };
 
@@ -243,15 +125,17 @@ const Students = () => {
           <div className="card">
             <div className="card-header d-flex justify-content-between align-items-center">
               <h5 className="card-title mb-0">Student Management</h5>
+              <div className="d-flex gap-2">
               <button 
                 className="btn btn-primary"
-                onClick={() => {
-                  resetForm();
-                  setShowModal(true);
-                }}
+                onClick={() => navigate('/students/create')}
               >
                 <i className="fas fa-plus me-2"></i>Add Student
               </button>
+              <a href="/archives" className="btn btn-outline-secondary">
+                <i className="fas fa-archive me-2"></i>Archive
+              </a>
+              </div>
             </div>
 
             <div className="card-body">
@@ -350,6 +234,13 @@ const Students = () => {
                               >
                                 <i className="fas fa-trash"></i>
                               </button>
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => handleArchive(student)}
+                                title="Archive"
+                              >
+                                <i className="fas fa-archive"></i>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -406,233 +297,7 @@ const Students = () => {
         </div>
       </div>
 
-      {/* Simple Add/Edit Student Modal */}
-      {showModal && (
-        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  {editingStudent ? 'Edit Student' : 'Add New Student'}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                ></button>
-              </div>
-
-              <form onSubmit={handleSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Student ID *</label>
-                    <input
-                      type="text"
-                      className={`form-control ${errors.student_id ? 'is-invalid' : ''}`}
-                      value={formData.student_id}
-                      onChange={(e) => setFormData({...formData, student_id: e.target.value})}
-                      readOnly={!editingStudent}
-                      required
-                      placeholder="S-2024-01"
-                    />
-                    {errors.student_id && <div className="invalid-feedback">{errors.student_id[0]}</div>}
-                  </div>
-
-                  {/* Removed ID, User ID, Course ID inputs per request. Course should be selected via course select when available. */}
-
-                  <div className="row">
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Academic Year ID</label>
-                      <input
-                        type="text"
-                        className={`form-control ${errors.academic_year_id ? 'is-invalid' : ''}`}
-                        value={formData.academic_year_id}
-                        onChange={(e) => setFormData({...formData, academic_year_id: e.target.value})}
-                      />
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Middle Name</label>
-                      <input
-                        type="text"
-                        className={`form-control ${errors.middle_name ? 'is-invalid' : ''}`}
-                        value={formData.middle_name}
-                        onChange={(e) => setFormData({...formData, middle_name: e.target.value})}
-                      />
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Extension Name</label>
-                      <input
-                        type="text"
-                        className={`form-control ${errors.extension_name ? 'is-invalid' : ''}`}
-                        value={formData.extension_name}
-                        onChange={(e) => setFormData({...formData, extension_name: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">First Name *</label>
-                        <input
-                          type="text"
-                          className={`form-control ${errors.first_name ? 'is-invalid' : ''}`}
-                          value={formData.first_name}
-                          onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                          required
-                        />
-                        {errors.first_name && <div className="invalid-feedback">{errors.first_name[0]}</div>}
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">Last Name *</label>
-                        <input
-                          type="text"
-                          className={`form-control ${errors.last_name ? 'is-invalid' : ''}`}
-                          value={formData.last_name}
-                          onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                          required
-                        />
-                        {errors.last_name && <div className="invalid-feedback">{errors.last_name[0]}</div>}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Email *</label>
-                    <input
-                      type="email"
-                      className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      required
-                    />
-                    {errors.email && <div className="invalid-feedback">{errors.email[0]}</div>}
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Phone</label>
-                    <input
-                      type="tel"
-                      className={`form-control ${errors.phone ? 'is-invalid' : ''}`}
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    />
-                    {errors.phone && <div className="invalid-feedback">{errors.phone[0]}</div>}
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">Date of Birth *</label>
-                        <input
-                          type="date"
-                          className={`form-control ${errors.date_of_birth ? 'is-invalid' : ''}`}
-                          value={formData.date_of_birth}
-                          onChange={(e) => setFormData({...formData, date_of_birth: e.target.value})}
-                          required
-                        />
-                        {errors.date_of_birth && <div className="invalid-feedback">{errors.date_of_birth[0]}</div>}
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">Enrollment Date *</label>
-                        <input
-                          type="date"
-                          className={`form-control ${errors.enrollment_date ? 'is-invalid' : ''}`}
-                          value={formData.enrollment_date}
-                          onChange={(e) => setFormData({...formData, enrollment_date: e.target.value})}
-                          required
-                        />
-                        {errors.enrollment_date && <div className="invalid-feedback">{errors.enrollment_date[0]}</div>}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="form-check form-switch mb-3">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="archivedSwitch"
-                      checked={!!formData.archived}
-                      onChange={(e) => setFormData({...formData, archived: e.target.checked})}
-                    />
-                    <label className="form-check-label" htmlFor="archivedSwitch">Archived Status</label>
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">Course *</label>
-                        <select
-                          className={`form-select ${errors.course_id ? 'is-invalid' : ''}`}
-                          value={formData.course_id}
-                          onChange={(e) => setFormData({...formData, course_id: e.target.value})}
-                          required
-                        >
-                          <option value="">Select Course</option>
-                          {courses.map(course => (
-                            <option key={course.id} value={course.id}>{course.name}</option>
-                          ))}
-                        </select>
-                        {errors.course_id && <div className="invalid-feedback">{errors.course_id[0]}</div>}
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">Status *</label>
-                        <select
-                          className={`form-select ${errors.status ? 'is-invalid' : ''}`}
-                          value={formData.status}
-                          onChange={(e) => setFormData({...formData, status: e.target.value})}
-                          required
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                          <option value="suspended">Suspended</option>
-                        </select>
-                        {errors.status && <div className="invalid-feedback">{errors.status[0]}</div>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setShowModal(false);
-                      resetForm();
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        {editingStudent ? 'Updating...' : 'Creating...'}
-                      </>
-                    ) : (
-                      editingStudent ? 'Update Student' : 'Create Student'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 };

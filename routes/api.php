@@ -8,6 +8,7 @@ use App\Http\Controllers\{
     ProfileController
 };
 use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\ArchiveController;
 use App\Http\Controllers\AuthController;
 
 /*
@@ -44,6 +45,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('courses', CourseController::class);
     Route::apiResource('departments', DepartmentController::class);
     Route::apiResource('academic-years', AcademicYearController::class);
+    
+    // Archive endpoints (modal UI uses these)
+    Route::get('/archives', [ArchiveController::class, 'index']);
+    Route::post('/archives', [ArchiveController::class, 'store']);
+    Route::post('/archives/{id}/restore', [ArchiveController::class, 'restore']);
+    // lightweight archive toggles for students and faculty (avoid full-update validation when toggling)
+    Route::patch('/students/{id}/archive', [StudentController::class, 'archive']);
+    Route::patch('/faculty/{id}/archive', [FacultyController::class, 'archive']);
     
     Route::get('/profile', [ProfileController::class,'show']);
     Route::put('/profile', [ProfileController::class,'update']);

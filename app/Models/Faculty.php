@@ -19,11 +19,13 @@ class Faculty extends Model
         'phone',
         'position',
         'department_id',
-        'is_active'
+        'is_active',
+        'archived'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'archived' => 'boolean',
     ];
 
     public function department()

@@ -1,0 +1,613 @@
+// resources/js/components/Pages/Students.js
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const Students = () => {
+  const [students, setStudents] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCourse, setFilterCourse] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  const [formData, setFormData] = useState({
+    course_id: '',
+    academic_year_id: '',
+    student_id: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    extension_name: '',
+    email: '',
+    phone: '',
+    date_of_birth: '',
+    enrollment_date: '',
+    status: 'active',
+    archived: false
+  });
+
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    fetchStudents();
+    fetchCourses();
+  }, [currentPage, searchTerm, filterCourse, filterStatus]);
+
+  const fetchStudents = async () => {
+    try {
+      const params = {
+        page: currentPage,
+        search: searchTerm,
+        course_id: filterCourse,
+        status: filterStatus
+      };
+
+      const response = await axios.get('/api/students', { params });
+      const studentsData = response.data.data.map((student) => {
+        return {
+          ...student,
+          course_name: student.department?.courses?.find(
+            (course) => course.id === student.course_id
+          )?.name || "N/A",
+        };
+      });
+
+      setStudents(studentsData);
+      setTotalPages(response.data.meta?.last_page || 1);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCourses = async () => {
+    try {
+      const response = await axios.get('/api/courses');
+      setCourses(response.data.data || response.data || []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      setCourses([]);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const payload = { ...formData };
+      // normalize date fields to YYYY-MM-DD for server and HTML date inputs
+      if (payload.date_of_birth) payload.date_of_birth = normalizeDate(payload.date_of_birth);
+      if (payload.enrollment_date) payload.enrollment_date = normalizeDate(payload.enrollment_date);
+      // Auto-generate student_id for new students if empty
+      if (!editingStudent) {
+        if (!payload.student_id) {
+          const year = new Date().getFullYear();
+          const suffix = String(Date.now()).slice(-6);
+          payload.student_id = `S-${year}-${suffix}`;
+        }
+      }
+
+      if (editingStudent) {
+        await axios.put(`/api/students/${editingStudent.id}`, payload);
+        alert('Student updated successfully!');
+      } else {
+        await axios.post('/api/students', payload);
+        alert('Student created successfully!');
+      }
+      
+      setShowModal(false);
+      resetForm();
+      fetchStudents();
+    } catch (error) {
+      if (error.response?.status === 422) {
+        setErrors(error.response.data.errors || {});
+      } else {
+        alert('An error occurred. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (student) => {
+    setEditingStudent(student);
+    setFormData({
+      course_id: student.course_id || '',
+      academic_year_id: student.academic_year_id || '',
+      student_id: student.student_id || '',
+      first_name: student.first_name || '',
+      middle_name: student.middle_name || '',
+      last_name: student.last_name || '',
+      extension_name: student.extension_name || '',
+      email: student.email || '',
+      phone: student.phone || '',
+      // convert ISO timestamps like 2023-08-07T00:00:00.000000Z to YYYY-MM-DD
+      date_of_birth: student.date_of_birth ? normalizeDate(student.date_of_birth) : '',
+      enrollment_date: student.enrollment_date ? normalizeDate(student.enrollment_date) : '',
+      status: student.status || 'active',
+      archived: !!student.archived
+    });
+    setShowModal(true);
+  };
+
+  // normalize various datetime formats to YYYY-MM-DD (works with Date, ISO strings, or already YYYY-MM-DD)
+  const normalizeDate = (value) => {
+    if (!value) return '';
+    // If already in YYYY-MM-DD format, return directly
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    // Try to parse with Date
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    // fallback: strip time portion if present
+    const m = value.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  };
+
+  const resetForm = () => {
+    setFormData({
+      course_id: '',
+      academic_year_id: '',
+      // pre-generate student id for new student
+      student_id: generateStudentId(),
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      extension_name: '',
+      email: '',
+      phone: '',
+      date_of_birth: '',
+      enrollment_date: '',
+      status: 'active',
+      archived: false
+    });
+    setEditingStudent(null);
+    setErrors({});
+  };
+
+  const generateStudentId = () => {
+    const year = new Date().getFullYear();
+    // use a timestamp suffix to reduce collisions
+    const suffix = String(Date.now()).slice(-6);
+    return `S-${year}-${suffix}`;
+  };
+
+  const handleDelete = async (student) => {
+    if (!confirm(`Are you sure you want to delete ${student.first_name} ${student.last_name}?`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/students/${student.id}`);
+      alert('Student deleted successfully!');
+      fetchStudents();
+    } catch (error) {
+      alert('Error deleting student');
+    }
+  };
+
+  if (loading && students.length === 0) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-fluid">
+      <div className="row">
+        <div className="col-12">
+          <div className="card">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h5 className="card-title mb-0">Student Management</h5>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  resetForm();
+                  setShowModal(true);
+                }}
+              >
+                <i className="fas fa-plus me-2"></i>Add Student
+              </button>
+            </div>
+
+            <div className="card-body">
+              {/* Search and Filters */}
+              <div className="row mb-3">
+                <div className="col-md-4">
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search students..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <select
+                    className="form-select"
+                    value={filterCourse}
+                    onChange={(e) => {
+                      setFilterCourse(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                      <option value="">All Courses</option>
+                    {courses.map(course => (
+                      <option key={course.id} value={course.id}>{course.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <select
+                    className="form-select"
+                    value={filterStatus}
+                    onChange={(e) => {
+                      setFilterStatus(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="graduated">Graduated</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Students Table */}
+              <div className="table-responsive">
+                <table className="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Student ID</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Course</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.length > 0 ? (
+                      students.map((student) => (
+                        <tr key={student.id}>
+                          <td>{student.student_id}</td>
+                          <td>{student.first_name} {student.last_name}</td>
+                          <td>{student.email}</td>
+                          <td>{student.phone || 'N/A'}</td>
+                          <td>{student.course_name}</td>
+                          <td>
+                            <span className={`badge ${
+                              student.status === 'active' ? 'bg-success' :
+                              student.status === 'graduated' ? 'bg-primary' :
+                              student.status === 'suspended' ? 'bg-danger' : 'bg-secondary'
+                            }`}>
+                              {student.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="btn-group">
+                              <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() => handleEdit(student)}
+                                title="Edit"
+                              >
+                                <i className="fas fa-edit"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => handleDelete(student)}
+                                title="Delete"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className="text-center">No students found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <nav>
+                  <ul className="pagination justify-content-center">
+                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                      <button
+                        className="page-link"
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </button>
+                    </li>
+                    {[...Array(totalPages)].map((_, index) => (
+                      <li
+                        key={index + 1}
+                        className={`page-item ${currentPage === index + 1 ? 'active' : ''}`}
+                      >
+                        <button
+                          className="page-link"
+                          onClick={() => setCurrentPage(index + 1)}
+                        >
+                          {index + 1}
+                        </button>
+                      </li>
+                    ))}
+                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                      <button
+                        className="page-link"
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Simple Add/Edit Student Modal */}
+      {showModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  {editingStudent ? 'Edit Student' : 'Add New Student'}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowModal(false);
+                    resetForm();
+                  }}
+                ></button>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label">Student ID *</label>
+                    <input
+                      type="text"
+                      className={`form-control ${errors.student_id ? 'is-invalid' : ''}`}
+                      value={formData.student_id}
+                      onChange={(e) => setFormData({...formData, student_id: e.target.value})}
+                      readOnly={!editingStudent}
+                      required
+                      placeholder="S-2024-01"
+                    />
+                    {errors.student_id && <div className="invalid-feedback">{errors.student_id[0]}</div>}
+                  </div>
+
+                  {/* Removed ID, User ID, Course ID inputs per request. Course should be selected via course select when available. */}
+
+                  <div className="row">
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Academic Year ID</label>
+                      <input
+                        type="text"
+                        className={`form-control ${errors.academic_year_id ? 'is-invalid' : ''}`}
+                        value={formData.academic_year_id}
+                        onChange={(e) => setFormData({...formData, academic_year_id: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Middle Name</label>
+                      <input
+                        type="text"
+                        className={`form-control ${errors.middle_name ? 'is-invalid' : ''}`}
+                        value={formData.middle_name}
+                        onChange={(e) => setFormData({...formData, middle_name: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <label className="form-label">Extension Name</label>
+                      <input
+                        type="text"
+                        className={`form-control ${errors.extension_name ? 'is-invalid' : ''}`}
+                        value={formData.extension_name}
+                        onChange={(e) => setFormData({...formData, extension_name: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">First Name *</label>
+                        <input
+                          type="text"
+                          className={`form-control ${errors.first_name ? 'is-invalid' : ''}`}
+                          value={formData.first_name}
+                          onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                          required
+                        />
+                        {errors.first_name && <div className="invalid-feedback">{errors.first_name[0]}</div>}
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Last Name *</label>
+                        <input
+                          type="text"
+                          className={`form-control ${errors.last_name ? 'is-invalid' : ''}`}
+                          value={formData.last_name}
+                          onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                          required
+                        />
+                        {errors.last_name && <div className="invalid-feedback">{errors.last_name[0]}</div>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Email *</label>
+                    <input
+                      type="email"
+                      className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      required
+                    />
+                    {errors.email && <div className="invalid-feedback">{errors.email[0]}</div>}
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Phone</label>
+                    <input
+                      type="tel"
+                      className={`form-control ${errors.phone ? 'is-invalid' : ''}`}
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    />
+                    {errors.phone && <div className="invalid-feedback">{errors.phone[0]}</div>}
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Date of Birth *</label>
+                        <input
+                          type="date"
+                          className={`form-control ${errors.date_of_birth ? 'is-invalid' : ''}`}
+                          value={formData.date_of_birth}
+                          onChange={(e) => setFormData({...formData, date_of_birth: e.target.value})}
+                          required
+                        />
+                        {errors.date_of_birth && <div className="invalid-feedback">{errors.date_of_birth[0]}</div>}
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Enrollment Date *</label>
+                        <input
+                          type="date"
+                          className={`form-control ${errors.enrollment_date ? 'is-invalid' : ''}`}
+                          value={formData.enrollment_date}
+                          onChange={(e) => setFormData({...formData, enrollment_date: e.target.value})}
+                          required
+                        />
+                        {errors.enrollment_date && <div className="invalid-feedback">{errors.enrollment_date[0]}</div>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-check form-switch mb-3">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="archivedSwitch"
+                      checked={!!formData.archived}
+                      onChange={(e) => setFormData({...formData, archived: e.target.checked})}
+                    />
+                    <label className="form-check-label" htmlFor="archivedSwitch">Archived Status</label>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Course *</label>
+                        <select
+                          className={`form-select ${errors.course_id ? 'is-invalid' : ''}`}
+                          value={formData.course_id}
+                          onChange={(e) => setFormData({...formData, course_id: e.target.value})}
+                          required
+                        >
+                          <option value="">Select Course</option>
+                          {courses.map(course => (
+                            <option key={course.id} value={course.id}>{course.name}</option>
+                          ))}
+                        </select>
+                        {errors.course_id && <div className="invalid-feedback">{errors.course_id[0]}</div>}
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Status *</label>
+                        <select
+                          className={`form-select ${errors.status ? 'is-invalid' : ''}`}
+                          value={formData.status}
+                          onChange={(e) => setFormData({...formData, status: e.target.value})}
+                          required
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                          <option value="graduated">Graduated</option>
+                          <option value="suspended">Suspended</option>
+                        </select>
+                        {errors.status && <div className="invalid-feedback">{errors.status[0]}</div>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowModal(false);
+                      resetForm();
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        {editingStudent ? 'Updating...' : 'Creating...'}
+                      </>
+                    ) : (
+                      editingStudent ? 'Update Student' : 'Create Student'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Students;

@@ -7,11 +7,16 @@ import Login from './components/Auth/Login';
 import Layout from './components/Layout/Layout';
 import Dashboard from './components/Pages/Dashboard';
 import Faculty from './components/Pages/Faculty';
+import FacultyCreate from './components/Pages/FacultyCreate';
+import FacultyEdit from './components/Pages/FacultyEdit';
 import Students from './components/Pages/Students';
+import StudentsCreate from './components/Pages/StudentsCreate';
+import StudentsEdit from './components/Pages/StudentsEdit';
 import Courses from './components/Pages/Courses';
 import Departments from './components/Pages/Departments';
 import Reports from './components/Pages/Reports';
 import Profile from './components/Pages/Profile';
+import ArchiveFiles from './components/Pages/ArchiveFiles';
 
 // Auth Context //
 const AuthContext = createContext();
@@ -160,11 +165,16 @@ export default function AppRouter() {
                   <Routes>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/faculty" element={<Faculty />} />
+                    <Route path="/faculty/create" element={<FacultyCreate />} />
+                    <Route path="/faculty/:id/edit" element={<FacultyEdit />} />
                     <Route path="/students" element={<Students />} />
+                    <Route path="/students/create" element={<StudentsCreate />} />
+                    <Route path="/students/:id/edit" element={<StudentsEdit />} />
                     <Route path="/courses" element={<Courses />} />
                     <Route path="/departments" element={<Departments />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/profile" element={<Profile />} />
+                    <Route path="/archives" element={<ArchiveFiles />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
