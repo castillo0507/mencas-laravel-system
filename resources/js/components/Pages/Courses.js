@@ -15,6 +15,7 @@ const Courses = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [searching, setSearching] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,6 +58,7 @@ const Courses = () => {
       }
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   };
 
@@ -197,8 +199,9 @@ const Courses = () => {
                     className="form-control"
                     placeholder="Search courses..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); setSearching(true); }}
                   />
+                  {searching && <div className="small text-muted mt-1">Searching&hellip;</div>}
                 </div>
                 <div className="col-md-3">
                   <select

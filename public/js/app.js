@@ -60419,19 +60419,23 @@ var Courses = function Courses() {
     _useState18 = _slicedToArray(_useState17, 2),
     filterStatus = _useState18[0],
     setFilterStatus = _useState18[1];
-  var _useState19 = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
+  var _useState19 = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false),
+    _useState20 = _slicedToArray(_useState19, 2),
+    searching = _useState20[0],
+    setSearching = _useState20[1];
+  var _useState21 = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
       name: '',
       description: '',
       department_id: '',
       is_active: true
     }),
-    _useState20 = _slicedToArray(_useState19, 2),
-    formData = _useState20[0],
-    setFormData = _useState20[1];
-  var _useState21 = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({}),
     _useState22 = _slicedToArray(_useState21, 2),
-    errors = _useState22[0],
-    setErrors = _useState22[1];
+    formData = _useState22[0],
+    setFormData = _useState22[1];
+  var _useState23 = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({}),
+    _useState24 = _slicedToArray(_useState23, 2),
+    errors = _useState24[0],
+    setErrors = _useState24[1];
   (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(function () {
     fetchCourses();
     fetchDepartments();
@@ -60485,6 +60489,7 @@ var Courses = function Courses() {
           case 4:
             _context.p = 4;
             setLoading(false);
+            setSearching(false);
             return _context.f(4);
           case 5:
             return _context.a(2);
@@ -60713,24 +60718,31 @@ var Courses = function Courses() {
             className: "card-body",
             children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
               className: "row",
-              children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
+              children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "col-md-4",
-                children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                   type: "text",
                   className: "form-control",
                   placeholder: "Search courses...",
                   value: searchTerm,
                   onChange: function onChange(e) {
-                    return setSearchTerm(e.target.value);
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                    setSearching(true);
                   }
-                })
+                }), searching && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
+                  className: "small text-muted mt-1",
+                  children: "Searching\u2026"
+                })]
               }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                 className: "col-md-3",
                 children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
                   className: "form-select",
                   value: filterDepartment,
                   onChange: function onChange(e) {
-                    return setFilterDepartment(e.target.value);
+                    setFilterDepartment(e.target.value);
+                    setCurrentPage(1);
+                    setSearching(true);
                   },
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                     value: "",
@@ -60742,13 +60754,15 @@ var Courses = function Courses() {
                     }, dept.id);
                   })]
                 })
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "col-md-3",
-                children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
                   className: "form-select",
                   value: filterStatus,
                   onChange: function onChange(e) {
-                    return setFilterStatus(e.target.value);
+                    setFilterStatus(e.target.value);
+                    setCurrentPage(1);
+                    setSearching(true);
                   },
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                     value: "",
@@ -60760,7 +60774,10 @@ var Courses = function Courses() {
                     value: "inactive",
                     children: "Inactive"
                   })]
-                })
+                }), searching && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
+                  className: "small text-muted mt-1",
+                  children: "Searching\u2026"
+                })]
               }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                 className: "col-md-2",
                 children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("button", {
@@ -60770,6 +60787,7 @@ var Courses = function Courses() {
                     setFilterDepartment('');
                     setFilterStatus('');
                     setCurrentPage(1);
+                    setSearching(true);
                   },
                   children: "Clear"
                 })
