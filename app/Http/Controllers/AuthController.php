@@ -86,4 +86,52 @@ class AuthController extends Controller
         
         return redirect('/login');
     }
+
+    /**
+     * Register an initial admin account via API.
+     * Only allowed when no admin account exists to avoid open registration.
+     */
+    public function registerAdmin(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        // Prevent creating multiple admin accounts from the API
+        if (User::where('role', 'admin')->exists()) {
+            return response()->json([
+                'message' => 'An admin account already exists.'
+            ], 403);
+        }
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => 'admin',
+        ]);
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Admin account created',
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ]
+        ], 201);
+    }
+
+    /**
+     * Return whether an admin account already exists.
+     */
+    public function adminExists(Request $request)
+    {
+        $exists = User::where('role', 'admin')->exists();
+        return response()->json(['exists' => (bool) $exists]);
+    }
 }

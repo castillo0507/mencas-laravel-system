@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 
 const StudentsEdit = () => {
   const { id } = useParams();
@@ -183,14 +183,15 @@ const StudentsEdit = () => {
                     <label className="form-label">Academic Year</label>
                     <select className={`form-select ${errors.academic_year_id ? 'is-invalid' : ''}`} value={formData.academic_year_id} onChange={(e) => setFormData({...formData, academic_year_id: e.target.value})}>
                       <option value="">Select Academic Year</option>
-                      {/* Static options */}
-                      <option value="2020-2021">S.Y. 2020-2021</option>
-                      <option value="2021-2022">S.Y. 2021-2022</option>
-                      <option value="2022-2023">S.Y. 2022-2023</option>
-                      <option value="2023-2024">S.Y. 2023-2024</option>
-                      <option value="2024-2025">S.Y. 2024-2025</option>
-                      {academicYears.map(y => (<option key={y.id} value={y.id}>{y.name}</option>))}
+                      {academicYears && academicYears.length > 0 ? (
+                        academicYears.map(y => (<option key={y.id} value={y.id}>{y.year || y.name}</option>))
+                      ) : (
+                        <option value="" disabled>No academic years available</option>
+                      )}
                     </select>
+                    {(!academicYears || academicYears.length === 0) && (
+                      <small className="text-muted d-block mt-1">No academic years found. <Link to="/academic-years">Create an academic year</Link>.</small>
+                    )}
                     {errors.academic_year_id && <div className="invalid-feedback">{errors.academic_year_id[0]}</div>}
                   </div>
 

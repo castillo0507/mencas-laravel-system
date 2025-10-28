@@ -15,8 +15,9 @@ const Sidebar = () => {
     { path: '/students', icon: 'fas fa-user-graduate', label: 'Students' },
     { path: '/archives', icon: 'fas fa-archive', label: 'Archived Files' },
     { path: '/courses', icon: 'fas fa-book', label: 'Courses' },
-    { path: '/departments', icon: 'fas fa-building', label: 'Departments' },
-    { path: '/reports', icon: 'fas fa-chart-bar', label: 'Reports' },
+      { path: '/departments', icon: 'fas fa-building', label: 'Departments' },
+      { path: '/academic-years', icon: 'fas fa-calendar-alt', label: 'Academic Years' },
+      { path: '/reports', icon: 'fas fa-chart-bar', label: 'Reports' },
     { path: '/profile', icon: 'fas fa-user', label: 'Profile' }
   ];
 

@@ -1,5 +1,6 @@
 // resources/js/components/Pages/Profile.js
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useAuth } from '../../router-new';
 
 const Profile = () => {
@@ -34,10 +35,23 @@ const Profile = () => {
     setSuccess('');
 
     try {
-      // Mock profile update - replace with actual API call
-      console.log('Updating profile:', formData);
-      setSuccess('Profile updated successfully!');
-      
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+      };
+
+      // Include password fields only if user entered them
+      if (formData.current_password) {
+        payload.current_password = formData.current_password;
+      }
+      if (formData.new_password) {
+        payload.new_password = formData.new_password;
+        payload.new_password_confirmation = formData.confirm_password;
+      }
+
+      const res = await axios.put('/api/profile', payload);
+      setSuccess(res.data.message || 'Profile updated successfully!');
+
       // Reset password fields
       setFormData({
         ...formData,

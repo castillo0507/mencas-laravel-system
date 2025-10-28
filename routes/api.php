@@ -24,6 +24,8 @@ use App\Http\Controllers\AuthController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register-admin', [AuthController::class, 'registerAdmin']);
+Route::get('/admin-exists', [AuthController::class, 'adminExists']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 // Public endpoints for dropdowns

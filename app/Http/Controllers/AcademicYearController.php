@@ -2,45 +2,36 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class AcademicYearController extends Controller
 {
     /**
      * Display a listing of academic years.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Mock data for now - replace with actual model when needed
-        $academicYears = [
-            [
-                'id' => 1,
-                'year' => '2024-2025',
-                'start_date' => '2024-09-01',
-                'end_date' => '2025-06-30',
-                'is_current' => true,
-                'is_active' => true
-            ],
-            [
-                'id' => 2,
-                'year' => '2023-2024',
-                'start_date' => '2023-09-01',
-                'end_date' => '2024-06-30',
-                'is_current' => false,
-                'is_active' => true
-            ]
-        ];
+        $perPage = (int) $request->get('per_page', 1000);
+        $query = AcademicYear::query()->orderByDesc('is_current')->orderByDesc('created_at');
 
+        // If client wants all results, return as array
+        if ($perPage === 0) {
+            $data = $query->get();
+            return response()->json(['data' => $data]);
+        }
+
+        $paginated = $query->paginate(min(max($perPage, 1), 1000));
         return response()->json([
-            'data' => $academicYears,
+            'data' => $paginated->items(),
             'meta' => [
-                'current_page' => 1,
-                'from' => 1,
-                'last_page' => 1,
-                'per_page' => 15,
-                'to' => count($academicYears),
-                'total' => count($academicYears),
+                'current_page' => $paginated->currentPage(),
+                'from' => $paginated->firstItem(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'to' => $paginated->lastItem(),
+                'total' => $paginated->total(),
             ]
         ]);
     }
@@ -50,18 +41,35 @@ class AcademicYearController extends Controller
      */
     public function store(Request $request)
     {
-        // Mock response
-        return response()->json([
-            'message' => 'Academic year created successfully',
-            'data' => [
-                'id' => 3,
-                'year' => $request->year,
-                'start_date' => $request->start_date,
-                'end_date' => $request->end_date,
-                'is_current' => false,
-                'is_active' => true
-            ]
-        ], 201);
+        $validator = Validator::make($request->all(), [
+            'year' => 'required|string|max:255',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'is_current' => 'sometimes|boolean',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // If this year is marked current, unset other current flags
+        if (!empty($data['is_current'])) {
+            AcademicYear::where('is_current', true)->update(['is_current' => false]);
+        }
+
+        // Backwards-compatibility: some existing schemas use `name` and `active` columns.
+        if (isset($data['year'])) {
+            $data['name'] = $data['year'];
+        }
+        $data['is_active'] = $data['is_active'] ?? true;
+        $data['active'] = $data['is_active'];
+
+        $ay = AcademicYear::create($data);
+
+        return response()->json(['message' => 'Academic year created successfully', 'data' => $ay], 201);
     }
 
     /**
@@ -69,16 +77,11 @@ class AcademicYearController extends Controller
      */
     public function show($id)
     {
-        return response()->json([
-            'data' => [
-                'id' => $id,
-                'year' => '2024-2025',
-                'start_date' => '2024-09-01',
-                'end_date' => '2025-06-30',
-                'is_current' => true,
-                'is_active' => true
-            ]
-        ]);
+        $ay = AcademicYear::find($id);
+        if (!$ay) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+        return response()->json(['data' => $ay]);
     }
 
     /**
@@ -86,17 +89,39 @@ class AcademicYearController extends Controller
      */
     public function update(Request $request, $id)
     {
-        return response()->json([
-            'message' => 'Academic year updated successfully',
-            'data' => [
-                'id' => $id,
-                'year' => $request->year,
-                'start_date' => $request->start_date,
-                'end_date' => $request->end_date,
-                'is_current' => $request->is_current ?? false,
-                'is_active' => $request->is_active ?? true
-            ]
+        $ay = AcademicYear::find($id);
+        if (!$ay) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'year' => 'required|string|max:255',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'is_current' => 'sometimes|boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        if (!empty($data['is_current'])) {
+            AcademicYear::where('is_current', true)->update(['is_current' => false]);
+        }
+
+        // Backwards-compatibility: populate legacy columns if present
+        if (isset($data['year'])) {
+            $data['name'] = $data['year'];
+        }
+        $data['is_active'] = $data['is_active'] ?? ($ay->is_active ?? true);
+        $data['active'] = $data['is_active'];
+
+        $ay->update($data);
+
+        return response()->json(['message' => 'Academic year updated successfully', 'data' => $ay]);
     }
 
     /**
@@ -104,8 +129,13 @@ class AcademicYearController extends Controller
      */
     public function destroy($id)
     {
-        return response()->json([
-            'message' => 'Academic year deleted successfully'
-        ]);
+        $ay = AcademicYear::find($id);
+        if (!$ay) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        $ay->delete();
+
+        return response()->json(['message' => 'Academic year deleted successfully']);
     }
 }

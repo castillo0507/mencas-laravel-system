@@ -1,10 +1,11 @@
 // resources/js/components/Auth/Login.js
 import React, { useState } from 'react';
 import { useAuth } from '../../router-new';
+import { Link } from 'react-router-dom';
 
 const Login = () => {
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -244,14 +245,14 @@ const Login = () => {
                 <span style={{ color: '#7f8c8d', fontSize: '14px' }}>
                   Don't have an account? 
                 </span>
-                <a href="#" style={{
+                <Link to="/register-admin" style={{
                   color: '#5D7FBD',
                   textDecoration: 'none',
                   fontWeight: '600',
                   marginLeft: '5px'
                 }}>
                   REGISTER
-                </a>
+                </Link>
               </div>
             </div>
           </div>

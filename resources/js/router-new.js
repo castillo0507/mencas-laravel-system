@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Import components //
 import Login from './components/Auth/Login';
+import RegisterAdmin from './components/Pages/RegisterAdmin';
 import Layout from './components/Layout/Layout';
 import Dashboard from './components/Pages/Dashboard';
 import Faculty from './components/Pages/Faculty';
@@ -17,6 +18,7 @@ import Departments from './components/Pages/Departments';
 import Reports from './components/Pages/Reports';
 import Profile from './components/Pages/Profile';
 import ArchiveFiles from './components/Pages/ArchiveFiles';
+import AcademicYears from './components/Pages/AcademicYears';
 
 // Auth Context //
 const AuthContext = createContext();
@@ -153,6 +155,14 @@ export default function AppRouter() {
               </PublicRoute>
             } 
           />
+          <Route
+            path="/register-admin"
+            element={
+              <PublicRoute>
+                <RegisterAdmin />
+              </PublicRoute>
+            }
+          />
           
           {/* Protected Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -172,6 +182,7 @@ export default function AppRouter() {
                     <Route path="/students/:id/edit" element={<StudentsEdit />} />
                     <Route path="/courses" element={<Courses />} />
                     <Route path="/departments" element={<Departments />} />
+                    <Route path="/academic-years" element={<AcademicYears />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/archives" element={<ArchiveFiles />} />
