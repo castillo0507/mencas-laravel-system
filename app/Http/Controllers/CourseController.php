@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Department;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -112,7 +113,13 @@ class CourseController extends Controller
      */
     public function show($id)
     {
-        $course = Course::with(['department', 'enrollments.student'])->findOrFail($id);
+        // Only eager-load enrollments if the table exists to avoid SQL errors on incomplete setups
+        $with = ['department'];
+        if (Schema::hasTable('enrollments')) {
+            $with[] = 'enrollments.student';
+        }
+
+        $course = Course::with($with)->findOrFail($id);
 
         return response()->json([
             'data' => $course
@@ -156,8 +163,8 @@ class CourseController extends Controller
     {
         $course = Course::findOrFail($id);
         
-        // Check if course has enrollments
-        if ($course->enrollments()->count() > 0) {
+        // Check if course has enrollments (only if table exists)
+        if (Schema::hasTable('enrollments') && $course->enrollments()->count() > 0) {
             return response()->json([
                 'message' => 'Cannot delete course with existing enrollments'
             ], 400);

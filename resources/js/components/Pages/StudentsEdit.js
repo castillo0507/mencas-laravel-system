@@ -14,6 +14,7 @@ const StudentsEdit = () => {
     course_id: '',
     department_id: '',
     academic_year_id: '',
+    year_level: '',
     student_id: '',
     first_name: '',
     middle_name: '',
@@ -179,7 +180,7 @@ const StudentsEdit = () => {
                 </div>
 
                 <div className="row mb-3">
-                  <div className="col-md-4 mb-3">
+                  <div className="col-md-3 mb-3">
                     <label className="form-label">Academic Year</label>
                     <select className={`form-select ${errors.academic_year_id ? 'is-invalid' : ''}`} value={formData.academic_year_id} onChange={(e) => setFormData({...formData, academic_year_id: e.target.value})}>
                       <option value="">Select Academic Year</option>
@@ -189,19 +190,28 @@ const StudentsEdit = () => {
                         <option value="" disabled>No academic years available</option>
                       )}
                     </select>
-                    {(!academicYears || academicYears.length === 0) && (
-                      <small className="text-muted d-block mt-1">No academic years found. <Link to="/academic-years">Create an academic year</Link>.</small>
-                    )}
                     {errors.academic_year_id && <div className="invalid-feedback">{errors.academic_year_id[0]}</div>}
                   </div>
 
-                  <div className="col-md-4 mb-3">
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Year Level</label>
+                    <select className={`form-select ${errors.year_level ? 'is-invalid' : ''}`} value={formData.year_level} onChange={(e) => setFormData({...formData, year_level: e.target.value})}>
+                      <option value="">Select Year Level</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </select>
+                    {errors.year_level && <div className="invalid-feedback">{errors.year_level[0]}</div>}
+                  </div>
+
+                  <div className="col-md-3 mb-3">
                     <label className="form-label">Middle Name</label>
                     <input type="text" className={`form-control ${errors.middle_name ? 'is-invalid' : ''}`} value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
                     {errors.middle_name && <div className="invalid-feedback">{errors.middle_name[0]}</div>}
                   </div>
 
-                  <div className="col-md-4 mb-3">
+                  <div className="col-md-3 mb-3">
                     <label className="form-label">Extension Name</label>
                     <input type="text" className={`form-control ${errors.extension_name ? 'is-invalid' : ''}`} value={formData.extension_name} onChange={(e) => setFormData({...formData, extension_name: e.target.value})} />
                     {errors.extension_name && <div className="invalid-feedback">{errors.extension_name[0]}</div>}
@@ -273,22 +283,7 @@ const StudentsEdit = () => {
                   </div>
                 </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Academic Year</label>
-                  <select className={`form-select ${errors.academic_year_id ? 'is-invalid' : ''}`} value={formData.academic_year_id} onChange={(e) => setFormData({...formData, academic_year_id: e.target.value})}>
-                    <option value="">Select Academic Year</option>
-                    {/* Static options */}
-                    <option value="2020-2021">S.Y. 2020-2021</option>
-                    <option value="2021-2022">S.Y. 2021-2022</option>
-                    <option value="2022-2023">S.Y. 2022-2023</option>
-                    <option value="2023-2024">S.Y. 2023-2024</option>
-                    <option value="2024-2025">S.Y. 2024-2025</option>
-                    {academicYears.map(y => (<option key={y.id} value={y.id}>{y.name}</option>))}
-                  </select>
-                  {errors.academic_year_id && <div className="invalid-feedback">{errors.academic_year_id[0]}</div>}
-                </div>
-
-                <div className="d-flex justify-content-end gap-2">
+                <div className="mb-3 d-flex justify-content-end gap-2">
                   <button type="button" className="btn btn-secondary" onClick={() => navigate('/students')}>Cancel</button>
                   <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Updating...' : 'Update Student'}</button>
                 </div>

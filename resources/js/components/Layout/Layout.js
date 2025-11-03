@@ -8,7 +8,7 @@ const Layout = ({ children }) => {
     <div className="d-flex" style={{ minHeight: '100vh' }}>
       <Sidebar />
       <div className="flex-grow-1">
-        <Navbar />
+  <Navbar />
         <main className="p-4" style={{ backgroundColor: '#f8f9fa', minHeight: 'calc(100vh - 60px)' }}>
           {children}
         </main>

@@ -33,6 +33,16 @@ class StudentController extends Controller
             $query->where('course_id', $request->course_id);
         }
 
+        // Filter by department
+        if ($request->has('department_id') && $request->department_id !== '') {
+            $query->where('department_id', $request->department_id);
+        }
+
+        // Filter by year level (if the students table has year_level)
+        if ($request->has('year_level') && $request->year_level !== '') {
+            $query->where('year_level', $request->year_level);
+        }
+
         // Filter by status
         if ($request->has('status') && $request->status !== '') {
             $query->where('status', $request->status);

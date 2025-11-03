@@ -43,10 +43,41 @@ const Courses = () => {
       console.log('Fetching courses with params:', params);
       const response = await axios.get('/api/courses', { params });
       console.log('Courses API response:', response.data);
-  setCourses(response.data.data || []);
-  setTotalPages(response.data.meta?.last_page || 1);
-  // keep currentPage in sync with the page we requested
-  setCurrentPage(page);
+      // normalize response shape
+      const list = response.data?.data ?? (Array.isArray(response.data) ? response.data : []);
+      const meta = response.data?.meta || {};
+
+      // if requested page is out of range (e.g., filter reduces number of pages), fallback to page 1
+      const lastPage = meta.last_page || 1;
+      if (page > lastPage && lastPage > 0) {
+        console.warn(`Requested page ${page} > last_page ${lastPage}, refetching page 1`);
+        setCurrentPage(1);
+        // small delay to allow state update (avoid infinite recursion)
+        return fetchCourses(1);
+      }
+
+      setCourses(list || []);
+      setTotalPages(meta.last_page || 1);
+      // keep currentPage in sync with the page we requested
+      setCurrentPage(page);
+      console.log('Courses meta:', meta);
+
+      // Fallback: if API returned no items but no filters/search are active, try a bulk fetch
+      if ((list == null || list.length === 0) && !searchTerm && !filterDepartment && !filterStatus) {
+        try {
+          console.warn('No courses returned for default filter; attempting bulk fetch as fallback');
+          const allResp = await axios.get('/api/courses', { params: { per_page: 1000 } });
+          const allList = allResp.data?.data ?? (Array.isArray(allResp.data) ? allResp.data : []);
+          if (Array.isArray(allList) && allList.length > 0) {
+            setCourses(allList);
+            setTotalPages(allResp.data?.meta?.last_page || 1);
+            setCurrentPage(1);
+            console.log('Bulk fetch returned', allList.length, 'courses');
+          }
+        } catch (e) {
+          console.warn('Bulk fetch fallback failed', e);
+        }
+      }
     } catch (error) {
       console.error('Error fetching courses:', error);
       console.error('Courses API error details:', error.response);
@@ -207,7 +238,7 @@ const Courses = () => {
                   <select
                     className="form-select"
                     value={filterDepartment}
-                    onChange={(e) => setFilterDepartment(e.target.value)}
+                    onChange={(e) => { setFilterDepartment(e.target.value); setCurrentPage(1); setSearching(true); }}
                   >
                     <option value="">All Departments</option>
                     {departments.map(dept => (
@@ -219,7 +250,7 @@ const Courses = () => {
                   <select
                     className="form-select"
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
+                    onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); setSearching(true); }}
                   >
                     <option value="">All Status</option>
                     <option value="active">Active</option>

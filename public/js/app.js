@@ -60001,10 +60001,6 @@ var Sidebar = function Sidebar() {
     path: '/reports',
     icon: 'fas fa-chart-bar',
     label: 'Reports'
-  }, {
-    path: '/profile',
-    icon: 'fas fa-user',
-    label: 'Profile'
   }];
   return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
     className: "bg-primary text-white d-flex flex-column",
@@ -60873,19 +60869,30 @@ var Courses = function Courses() {
     errors = _useState24[0],
     setErrors = _useState24[1];
   (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(function () {
-    fetchCourses();
+    _fetchCourses();
     fetchDepartments();
   }, [currentPage, searchTerm, filterDepartment, filterStatus]);
-  var fetchCourses = /*#__PURE__*/function () {
+  var _fetchCourses = /*#__PURE__*/function () {
     var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
       var page,
-        _response$data$meta,
+        _response$data$data,
+        _response$data,
+        _response$data2,
         params,
         response,
+        list,
+        meta,
+        lastPage,
+        _allResp$data$data,
+        _allResp$data,
+        allResp,
+        allList,
+        _allResp$data2,
         _error$response,
         _error$response2,
         _args = arguments,
-        _t;
+        _t,
+        _t2;
       return _regenerator().w(function (_context) {
         while (1) switch (_context.p = _context.n) {
           case 0:
@@ -60905,32 +60912,76 @@ var Courses = function Courses() {
           case 2:
             response = _context.v;
             console.log('Courses API response:', response.data);
-            setCourses(response.data.data || []);
-            setTotalPages(((_response$data$meta = response.data.meta) === null || _response$data$meta === void 0 ? void 0 : _response$data$meta.last_page) || 1);
+            // normalize response shape
+            list = (_response$data$data = (_response$data = response.data) === null || _response$data === void 0 ? void 0 : _response$data.data) !== null && _response$data$data !== void 0 ? _response$data$data : Array.isArray(response.data) ? response.data : [];
+            meta = ((_response$data2 = response.data) === null || _response$data2 === void 0 ? void 0 : _response$data2.meta) || {}; // if requested page is out of range (e.g., filter reduces number of pages), fallback to page 1
+            lastPage = meta.last_page || 1;
+            if (!(page > lastPage && lastPage > 0)) {
+              _context.n = 3;
+              break;
+            }
+            console.warn("Requested page ".concat(page, " > last_page ").concat(lastPage, ", refetching page 1"));
+            setCurrentPage(1);
+            // small delay to allow state update (avoid infinite recursion)
+            return _context.a(2, _fetchCourses(1));
+          case 3:
+            setCourses(list || []);
+            setTotalPages(meta.last_page || 1);
             // keep currentPage in sync with the page we requested
             setCurrentPage(page);
-            _context.n = 4;
+            console.log('Courses meta:', meta);
+
+            // Fallback: if API returned no items but no filters/search are active, try a bulk fetch
+            if (!((list == null || list.length === 0) && !searchTerm && !filterDepartment && !filterStatus)) {
+              _context.n = 7;
+              break;
+            }
+            _context.p = 4;
+            console.warn('No courses returned for default filter; attempting bulk fetch as fallback');
+            _context.n = 5;
+            return axios__WEBPACK_IMPORTED_MODULE_1___default().get('/api/courses', {
+              params: {
+                per_page: 1000
+              }
+            });
+          case 5:
+            allResp = _context.v;
+            allList = (_allResp$data$data = (_allResp$data = allResp.data) === null || _allResp$data === void 0 ? void 0 : _allResp$data.data) !== null && _allResp$data$data !== void 0 ? _allResp$data$data : Array.isArray(allResp.data) ? allResp.data : [];
+            if (Array.isArray(allList) && allList.length > 0) {
+              setCourses(allList);
+              setTotalPages(((_allResp$data2 = allResp.data) === null || _allResp$data2 === void 0 || (_allResp$data2 = _allResp$data2.meta) === null || _allResp$data2 === void 0 ? void 0 : _allResp$data2.last_page) || 1);
+              setCurrentPage(1);
+              console.log('Bulk fetch returned', allList.length, 'courses');
+            }
+            _context.n = 7;
             break;
-          case 3:
-            _context.p = 3;
+          case 6:
+            _context.p = 6;
             _t = _context.v;
-            console.error('Error fetching courses:', _t);
-            console.error('Courses API error details:', _t.response);
+            console.warn('Bulk fetch fallback failed', _t);
+          case 7:
+            _context.n = 9;
+            break;
+          case 8:
+            _context.p = 8;
+            _t2 = _context.v;
+            console.error('Error fetching courses:', _t2);
+            console.error('Courses API error details:', _t2.response);
             setCourses([]);
-            if (((_error$response = _t.response) === null || _error$response === void 0 ? void 0 : _error$response.status) === 401) {
+            if (((_error$response = _t2.response) === null || _error$response === void 0 ? void 0 : _error$response.status) === 401) {
               react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error('Authentication required. Please refresh and login again.');
             } else {
-              react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error("Error loading courses: ".concat(((_error$response2 = _t.response) === null || _error$response2 === void 0 || (_error$response2 = _error$response2.data) === null || _error$response2 === void 0 ? void 0 : _error$response2.message) || _t.message));
+              react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error("Error loading courses: ".concat(((_error$response2 = _t2.response) === null || _error$response2 === void 0 || (_error$response2 = _error$response2.data) === null || _error$response2 === void 0 ? void 0 : _error$response2.message) || _t2.message));
             }
-          case 4:
-            _context.p = 4;
+          case 9:
+            _context.p = 9;
             setLoading(false);
             setSearching(false);
-            return _context.f(4);
-          case 5:
+            return _context.f(9);
+          case 10:
             return _context.a(2);
         }
-      }, _callee, null, [[1, 3, 4, 5]]);
+      }, _callee, null, [[4, 6], [1, 8, 9, 10]]);
     }));
     return function fetchCourses() {
       return _ref.apply(this, arguments);
@@ -60938,7 +60989,7 @@ var Courses = function Courses() {
   }();
   var fetchDepartments = /*#__PURE__*/function () {
     var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
-      var response, _error$response3, _error$response4, _t2;
+      var response, _error$response3, _error$response4, _t3;
       return _regenerator().w(function (_context2) {
         while (1) switch (_context2.p = _context2.n) {
           case 0:
@@ -60954,13 +61005,13 @@ var Courses = function Courses() {
             break;
           case 2:
             _context2.p = 2;
-            _t2 = _context2.v;
-            console.error('Error fetching departments for courses:', _t2);
-            console.error('Departments API error details:', _t2.response);
-            if (((_error$response3 = _t2.response) === null || _error$response3 === void 0 ? void 0 : _error$response3.status) === 401) {
+            _t3 = _context2.v;
+            console.error('Error fetching departments for courses:', _t3);
+            console.error('Departments API error details:', _t3.response);
+            if (((_error$response3 = _t3.response) === null || _error$response3 === void 0 ? void 0 : _error$response3.status) === 401) {
               react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error('Authentication required for departments. Please refresh and login again.');
             } else {
-              react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error("Error loading departments: ".concat(((_error$response4 = _t2.response) === null || _error$response4 === void 0 || (_error$response4 = _error$response4.data) === null || _error$response4 === void 0 ? void 0 : _error$response4.message) || _t2.message));
+              react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error("Error loading departments: ".concat(((_error$response4 = _t3.response) === null || _error$response4 === void 0 || (_error$response4 = _error$response4.data) === null || _error$response4 === void 0 ? void 0 : _error$response4.message) || _t3.message));
             }
           case 3:
             return _context2.a(2);
@@ -60973,7 +61024,7 @@ var Courses = function Courses() {
   }();
   var handleSubmit = /*#__PURE__*/function () {
     var _ref3 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(e) {
-      var _response, _response2, response, saved, _error$response5, _error$response6, errs, messages, _t3;
+      var _response, _response2, response, saved, _error$response5, _error$response6, errs, messages, _t4;
       return _regenerator().w(function (_context3) {
         while (1) switch (_context3.p = _context3.n) {
           case 0:
@@ -61019,25 +61070,25 @@ var Courses = function Courses() {
             // after creating a new course, show page 1 and reload so the new item appears
             react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.success('Course created successfully');
             _context3.n = 7;
-            return fetchCourses(1);
+            return _fetchCourses(1);
           case 7:
             _context3.n = 9;
             break;
           case 8:
             _context3.p = 8;
-            _t3 = _context3.v;
-            if ((_error$response5 = _t3.response) !== null && _error$response5 !== void 0 && (_error$response5 = _error$response5.data) !== null && _error$response5 !== void 0 && _error$response5.errors) {
-              errs = _t3.response.data.errors || {};
+            _t4 = _context3.v;
+            if ((_error$response5 = _t4.response) !== null && _error$response5 !== void 0 && (_error$response5 = _error$response5.data) !== null && _error$response5 !== void 0 && _error$response5.errors) {
+              errs = _t4.response.data.errors || {};
               setErrors(errs);
               messages = Object.values(errs).flat();
               if (messages.length) {
                 react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error(messages.join('; '));
               }
-            } else if ((_error$response6 = _t3.response) !== null && _error$response6 !== void 0 && (_error$response6 = _error$response6.data) !== null && _error$response6 !== void 0 && _error$response6.message) {
-              react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error("Error: ".concat(_t3.response.data.message));
+            } else if ((_error$response6 = _t4.response) !== null && _error$response6 !== void 0 && (_error$response6 = _error$response6.data) !== null && _error$response6 !== void 0 && _error$response6.message) {
+              react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error("Error: ".concat(_t4.response.data.message));
             } else {
               react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error('An error occurred while saving the course. See console for details.');
-              console.error('Course save error:', _t3);
+              console.error('Course save error:', _t4);
             }
           case 9:
             return _context3.a(2);
@@ -61060,7 +61111,7 @@ var Courses = function Courses() {
   };
   var handleDelete = /*#__PURE__*/function () {
     var _ref4 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(course) {
-      var ok, _error$response7, _t4;
+      var ok, _error$response7, _t5;
       return _regenerator().w(function (_context4) {
         while (1) switch (_context4.p = _context4.n) {
           case 0:
@@ -61082,13 +61133,13 @@ var Courses = function Courses() {
             return axios__WEBPACK_IMPORTED_MODULE_1___default()["delete"]("/api/courses/".concat(course.id));
           case 3:
             react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.success('Course deleted successfully');
-            fetchCourses();
+            _fetchCourses();
             _context4.n = 5;
             break;
           case 4:
             _context4.p = 4;
-            _t4 = _context4.v;
-            react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error(((_error$response7 = _t4.response) === null || _error$response7 === void 0 || (_error$response7 = _error$response7.data) === null || _error$response7 === void 0 ? void 0 : _error$response7.message) || 'Error deleting course');
+            _t5 = _context4.v;
+            react_toastify__WEBPACK_IMPORTED_MODULE_2__.toast.error(((_error$response7 = _t5.response) === null || _error$response7 === void 0 || (_error$response7 = _error$response7.data) === null || _error$response7 === void 0 ? void 0 : _error$response7.message) || 'Error deleting course');
           case 5:
             return _context4.a(2);
         }
@@ -61176,7 +61227,9 @@ var Courses = function Courses() {
                   className: "form-select",
                   value: filterDepartment,
                   onChange: function onChange(e) {
-                    return setFilterDepartment(e.target.value);
+                    setFilterDepartment(e.target.value);
+                    setCurrentPage(1);
+                    setSearching(true);
                   },
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                     value: "",
@@ -61194,7 +61247,9 @@ var Courses = function Courses() {
                   className: "form-select",
                   value: filterStatus,
                   onChange: function onChange(e) {
-                    return setFilterStatus(e.target.value);
+                    setFilterStatus(e.target.value);
+                    setCurrentPage(1);
+                    setSearching(true);
                   },
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                     value: "",
@@ -65422,6 +65477,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -65527,10 +65583,17 @@ var Reports = function Reports() {
   var fetchStudents = /*#__PURE__*/function () {
     var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
       var params,
+        apiParams,
         response,
         list,
+        _allResp$data,
+        allResp,
+        allList,
+        fallback,
+        _list,
         _args2 = arguments,
-        _t2;
+        _t2,
+        _t3;
       return _regenerator().w(function (_context2) {
         while (1) switch (_context2.p = _context2.n) {
           case 0:
@@ -65538,52 +65601,110 @@ var Reports = function Reports() {
             setStudentsLoading(true);
             setStudentsError(null);
             _context2.p = 1;
+            // Map client filter keys to API expected keys
+            apiParams = {};
+            if (params.department) apiParams.department_id = params.department;
+            if (params.course) apiParams.course_id = params.course;
+            if (params.year_level) apiParams.year_level = params.year_level;
+            if (params.search) apiParams.search = params.search;
+
+            // Try API first
             _context2.n = 2;
             return axios__WEBPACK_IMPORTED_MODULE_1___default().get('/api/students', {
-              params: params
+              params: apiParams
             });
           case 2:
             response = _context2.v;
-            if (response.data && response.data.success) {
-              setStudents(response.data.data || []);
-            } else if (response.data && Array.isArray(response.data)) {
-              // fallback if API returns array
-              setStudents(response.data || []);
-            } else {
-              setStudents([]);
+            if (!response.data) {
+              _context2.n = 12;
+              break;
             }
-            _context2.n = 4;
+            if (!Array.isArray(response.data)) {
+              _context2.n = 3;
+              break;
+            }
+            setStudents(response.data || []);
+            _context2.n = 11;
             break;
           case 3:
-            _context2.p = 3;
+            if (!Array.isArray(response.data.data)) {
+              _context2.n = 10;
+              break;
+            }
+            list = response.data.data || []; // If server returned no students but user requested a year_level, try client-side fallback
+            if (!(list.length === 0 && params && params.year_level)) {
+              _context2.n = 8;
+              break;
+            }
+            _context2.p = 4;
+            _context2.n = 5;
+            return axios__WEBPACK_IMPORTED_MODULE_1___default().get('/api/students', {
+              params: {
+                per_page: 1000
+              }
+            });
+          case 5:
+            allResp = _context2.v;
+            allList = Array.isArray((_allResp$data = allResp.data) === null || _allResp$data === void 0 ? void 0 : _allResp$data.data) ? allResp.data.data : Array.isArray(allResp.data) ? allResp.data : [];
+            fallback = allList.filter(function (ss) {
+              return String(renderYearLevel(ss)) === String(params.year_level);
+            });
+            setStudents(fallback);
+            _context2.n = 7;
+            break;
+          case 6:
+            _context2.p = 6;
             _t2 = _context2.v;
-            console.warn('Could not fetch /api/students, falling back to dashboardData.students if available', _t2);
+            // final fallback: empty
+            setStudents([]);
+          case 7:
+            _context2.n = 9;
+            break;
+          case 8:
+            setStudents(list);
+          case 9:
+            _context2.n = 11;
+            break;
+          case 10:
+            setStudents([]);
+          case 11:
+            _context2.n = 13;
+            break;
+          case 12:
+            setStudents([]);
+          case 13:
+            _context2.n = 15;
+            break;
+          case 14:
+            _context2.p = 14;
+            _t3 = _context2.v;
+            console.warn('Could not fetch /api/students, falling back to dashboardData.students if available', _t3);
             // fallback to dashboardData if present
             if (dashboardData && Array.isArray(dashboardData.students)) {
               // apply client-side filters
-              list = dashboardData.students.slice();
-              if (params.department) list = list.filter(function (s) {
+              _list = dashboardData.students.slice();
+              if (params.department) _list = _list.filter(function (s) {
                 return String(s.department_id) === String(params.department);
               });
-              if (params.course) list = list.filter(function (s) {
+              if (params.course) _list = _list.filter(function (s) {
                 return String(s.course_id) === String(params.course);
               });
-              if (params.year_level) list = list.filter(function (s) {
+              if (params.year_level) _list = _list.filter(function (s) {
                 return String(s.year_level) === String(params.year_level);
               });
-              setStudents(list);
+              setStudents(_list);
             } else {
               setStudentsError('No student data available');
               setStudents([]);
             }
-          case 4:
-            _context2.p = 4;
+          case 15:
+            _context2.p = 15;
             setStudentsLoading(false);
-            return _context2.f(4);
-          case 5:
+            return _context2.f(15);
+          case 16:
             return _context2.a(2);
         }
-      }, _callee2, null, [[1, 3, 4, 5]]);
+      }, _callee2, null, [[4, 6], [1, 14, 15, 16]]);
     }));
     return function fetchStudents() {
       return _ref2.apply(this, arguments);
@@ -65618,6 +65739,80 @@ var Reports = function Reports() {
     };
     setStudentFilters(empty);
     fetchStudents(empty);
+  };
+
+  // Render a numeric year level (1-4). Prefer explicit year_level on the student record.
+  // If missing, attempt to parse a single-digit year (1-4) from academicYear fields or dashboard mappings.
+  var renderYearLevel = function renderYearLevel(s) {
+    var _s$academicYear, _s$academicYear2, _dashboardData$academ, _dashboardData$academ2, _s$course;
+    // direct numeric year_level (allow string or number)
+    if (s !== null && s !== void 0 && s.year_level || (s === null || s === void 0 ? void 0 : s.year_level) === 0) {
+      var v = String(s.year_level).trim();
+      if (/^[1-4]$/.test(v)) return v;
+    }
+
+    // Collect candidate strings to search for patterns
+    var candidates = [s === null || s === void 0 || (_s$academicYear = s.academicYear) === null || _s$academicYear === void 0 ? void 0 : _s$academicYear.year, s === null || s === void 0 || (_s$academicYear2 = s.academicYear) === null || _s$academicYear2 === void 0 ? void 0 : _s$academicYear2.name, (s === null || s === void 0 ? void 0 : s.academic_year) || (s === null || s === void 0 ? void 0 : s.academicYear) || (s === null || s === void 0 ? void 0 : s.academic_year_id), dashboardData === null || dashboardData === void 0 || (_dashboardData$academ = dashboardData.academic_years) === null || _dashboardData$academ === void 0 || (_dashboardData$academ = _dashboardData$academ.find(function (y) {
+      return y.id === s.academic_year_id;
+    })) === null || _dashboardData$academ === void 0 ? void 0 : _dashboardData$academ.year, dashboardData === null || dashboardData === void 0 || (_dashboardData$academ2 = dashboardData.academic_years) === null || _dashboardData$academ2 === void 0 || (_dashboardData$academ2 = _dashboardData$academ2.find(function (y) {
+      return y.id === s.academic_year_id;
+    })) === null || _dashboardData$academ2 === void 0 ? void 0 : _dashboardData$academ2.name, s === null || s === void 0 || (_s$course = s.course) === null || _s$course === void 0 ? void 0 : _s$course.name, s === null || s === void 0 ? void 0 : s.course_name, s === null || s === void 0 ? void 0 : s.year_level_label].filter(Boolean).map(function (c) {
+      return String(c);
+    });
+    var wordMap = {
+      'first': '1',
+      '1st': '1',
+      'one': '1',
+      'second': '2',
+      '2nd': '2',
+      'two': '2',
+      'third': '3',
+      '3rd': '3',
+      'three': '3',
+      'fourth': '4',
+      '4th': '4',
+      'four': '4'
+    };
+    var _iterator = _createForOfIteratorHelper(candidates),
+      _step;
+    try {
+      for (_iterator.s(); !(_step = _iterator.n()).done;) {
+        var str = _step.value;
+        // look for explicit patterns like 'Year 1', '1st Year', 'Level 2'
+        var m1 = str.match(/(?:year|yr|level|lvl)\s*[#:]*\s*([1-4])\b/i);
+        if (m1) return m1[1];
+
+        // look for ordinal like '1st', '2nd'
+        var m2 = str.match(/\b([1-4])(st|nd|rd|th)\b/i);
+        if (m2) return m2[1];
+
+        // look for standalone digit 1-4
+        var m3 = str.match(/\b([1-4])\b/);
+        if (m3) return m3[1];
+
+        // look for word form e.g., 'First Year'
+        for (var _i = 0, _Object$entries = Object.entries(wordMap); _i < _Object$entries.length; _i++) {
+          var _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2),
+            word = _Object$entries$_i[0],
+            num = _Object$entries$_i[1];
+          if (new RegExp('\\b' + word + '\\b', 'i').test(str)) return num;
+        }
+      }
+
+      // As a final fallback, try to inspect any numeric-looking property anywhere on the student object
+    } catch (err) {
+      _iterator.e(err);
+    } finally {
+      _iterator.f();
+    }
+    try {
+      var flat = JSON.stringify(s);
+      var mf = flat.match(/\b([1-4])\b/);
+      if (mf) return mf[1];
+    } catch (e) {
+      // ignore
+    }
+    return '-';
   };
   if (loading) {
     return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("div", {
@@ -66059,7 +66254,7 @@ var Reports = function Reports() {
                     children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("option", {
                       value: "",
                       children: "All"
-                    }), [1, 2, 3, 4, 5].map(function (y) {
+                    }), [1, 2, 3, 4].map(function (y) {
                       return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("option", {
                         value: y,
                         children: y
@@ -66105,14 +66300,14 @@ var Reports = function Reports() {
                       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("th", {
                         children: "Course"
                       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("th", {
-                        children: "Year"
+                        children: "Year Level"
                       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("th", {
                         children: "Status"
                       })]
                     })
                   }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("tbody", {
                     children: students.map(function (s) {
-                      var _s$department, _dashboardData$depart2, _s$course, _dashboardData$course, _s$academicYear, _dashboardData$academ;
+                      var _s$department, _dashboardData$depart2, _s$course2, _dashboardData$course;
                       return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsxs)("tr", {
                         children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("td", {
                           children: s.name || "".concat(s.first_name || '', " ").concat(s.last_name || '')
@@ -66121,13 +66316,11 @@ var Reports = function Reports() {
                             return d.id === s.department_id;
                           })) === null || _dashboardData$depart2 === void 0 ? void 0 : _dashboardData$depart2.name) || '-'
                         }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("td", {
-                          children: ((_s$course = s.course) === null || _s$course === void 0 ? void 0 : _s$course.name) || s.course_name || (dashboardData === null || dashboardData === void 0 || (_dashboardData$course = dashboardData.courses) === null || _dashboardData$course === void 0 || (_dashboardData$course = _dashboardData$course.find(function (c) {
+                          children: ((_s$course2 = s.course) === null || _s$course2 === void 0 ? void 0 : _s$course2.name) || s.course_name || (dashboardData === null || dashboardData === void 0 || (_dashboardData$course = dashboardData.courses) === null || _dashboardData$course === void 0 || (_dashboardData$course = _dashboardData$course.find(function (c) {
                             return c.id === s.course_id;
                           })) === null || _dashboardData$course === void 0 ? void 0 : _dashboardData$course.name) || '-'
                         }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("td", {
-                          children: ((_s$academicYear = s.academicYear) === null || _s$academicYear === void 0 ? void 0 : _s$academicYear.name) || s.year_level || (dashboardData === null || dashboardData === void 0 || (_dashboardData$academ = dashboardData.academic_years) === null || _dashboardData$academ === void 0 || (_dashboardData$academ = _dashboardData$academ.find(function (y) {
-                            return y.id === s.academic_year_id;
-                          })) === null || _dashboardData$academ === void 0 ? void 0 : _dashboardData$academ.name) || '-'
+                          children: renderYearLevel(s)
                         }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("td", {
                           children: s.status || '-'
                         })]
@@ -66912,6 +67105,7 @@ var StudentsCreate = function StudentsCreate() {
   var _useState9 = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
       course_id: '',
       department_id: '',
+      year_level: '',
       academic_year_id: '',
       student_id: '',
       first_name: '',
@@ -67166,7 +67360,7 @@ var StudentsCreate = function StudentsCreate() {
               }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "row mb-3",
                 children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
-                  className: "col-md-4 mb-3",
+                  className: "col-md-3 mb-3",
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "Academic Year"
@@ -67195,7 +67389,40 @@ var StudentsCreate = function StudentsCreate() {
                     children: errors.academic_year_id[0]
                   })]
                 }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
-                  className: "col-md-4 mb-3",
+                  className: "col-md-3 mb-3",
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
+                    className: "form-label",
+                    children: "Year Level"
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
+                    className: "form-select ".concat(errors.year_level ? 'is-invalid' : ''),
+                    value: formData.year_level,
+                    onChange: function onChange(e) {
+                      return setFormData(_objectSpread(_objectSpread({}, formData), {}, {
+                        year_level: e.target.value
+                      }));
+                    },
+                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "",
+                      children: "Select Year Level"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "1",
+                      children: "1"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "2",
+                      children: "2"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "3",
+                      children: "3"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "4",
+                      children: "4"
+                    })]
+                  }), errors.year_level && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
+                    className: "invalid-feedback",
+                    children: errors.year_level[0]
+                  })]
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
+                  className: "col-md-3 mb-3",
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "Middle Name"
@@ -67213,7 +67440,7 @@ var StudentsCreate = function StudentsCreate() {
                     children: errors.middle_name[0]
                   })]
                 }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
-                  className: "col-md-4 mb-3",
+                  className: "col-md-3 mb-3",
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "Extension Name"
@@ -67460,8 +67687,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var react_toastify__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react-toastify */ "./node_modules/react-toastify/dist/react-toastify.esm.mjs");
 /* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router/dist/index.js");
-/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router-dom/dist/index.js");
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
@@ -67507,6 +67733,7 @@ var StudentsEdit = function StudentsEdit() {
       course_id: '',
       department_id: '',
       academic_year_id: '',
+      year_level: '',
       student_id: '',
       first_name: '',
       middle_name: '',
@@ -67749,21 +67976,21 @@ var StudentsEdit = function StudentsEdit() {
       return _ref5.apply(this, arguments);
     };
   }();
-  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
     className: "container-fluid",
-    children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+    children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
       className: "row",
-      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
         className: "col-12",
-        children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+        children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
           className: "card",
-          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
             className: "card-header d-flex justify-content-between align-items-center",
-            children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("h5", {
+            children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("h5", {
               className: "card-title mb-0",
               children: "Edit Student"
-            }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
-              children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("button", {
+            }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
+              children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("button", {
                 className: "btn btn-secondary",
                 onClick: function onClick() {
                   return navigate('/students');
@@ -67771,16 +67998,16 @@ var StudentsEdit = function StudentsEdit() {
                 children: "Back"
               })
             })]
-          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
             className: "card-body",
-            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("form", {
+            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("form", {
               onSubmit: handleSubmit,
-              children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+              children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "mb-3",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                   className: "form-label",
                   children: "Student ID *"
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                   type: "text",
                   className: "form-control ".concat(errors.student_id ? 'is-invalid' : ''),
                   value: formData.student_id,
@@ -67790,18 +68017,18 @@ var StudentsEdit = function StudentsEdit() {
                     }));
                   },
                   required: true
-                }), errors.student_id && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                }), errors.student_id && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                   className: "invalid-feedback",
                   children: errors.student_id[0]
                 })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "row mb-3",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
-                  className: "col-md-4 mb-3",
-                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
+                  className: "col-md-3 mb-3",
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "Academic Year"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("select", {
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
                     className: "form-select ".concat(errors.academic_year_id ? 'is-invalid' : ''),
                     value: formData.academic_year_id,
                     onChange: function onChange(e) {
@@ -67809,35 +68036,62 @@ var StudentsEdit = function StudentsEdit() {
                         academic_year_id: e.target.value
                       }));
                     },
-                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                       value: "",
                       children: "Select Academic Year"
                     }), academicYears && academicYears.length > 0 ? academicYears.map(function (y) {
-                      return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                      return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                         value: y.id,
                         children: y.year || y.name
                       }, y.id);
-                    }) : /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                    }) : /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                       value: "",
                       disabled: true,
                       children: "No academic years available"
                     })]
-                  }), (!academicYears || academicYears.length === 0) && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("small", {
-                    className: "text-muted d-block mt-1",
-                    children: ["No academic years found. ", /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)(react_router_dom__WEBPACK_IMPORTED_MODULE_4__.Link, {
-                      to: "/academic-years",
-                      children: "Create an academic year"
-                    }), "."]
-                  }), errors.academic_year_id && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                  }), errors.academic_year_id && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                     className: "invalid-feedback",
                     children: errors.academic_year_id[0]
                   })]
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
-                  className: "col-md-4 mb-3",
-                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
+                  className: "col-md-3 mb-3",
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
+                    className: "form-label",
+                    children: "Year Level"
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
+                    className: "form-select ".concat(errors.year_level ? 'is-invalid' : ''),
+                    value: formData.year_level,
+                    onChange: function onChange(e) {
+                      return setFormData(_objectSpread(_objectSpread({}, formData), {}, {
+                        year_level: e.target.value
+                      }));
+                    },
+                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "",
+                      children: "Select Year Level"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "1",
+                      children: "1"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "2",
+                      children: "2"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "3",
+                      children: "3"
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
+                      value: "4",
+                      children: "4"
+                    })]
+                  }), errors.year_level && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
+                    className: "invalid-feedback",
+                    children: errors.year_level[0]
+                  })]
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
+                  className: "col-md-3 mb-3",
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "Middle Name"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                     type: "text",
                     className: "form-control ".concat(errors.middle_name ? 'is-invalid' : ''),
                     value: formData.middle_name,
@@ -67846,16 +68100,16 @@ var StudentsEdit = function StudentsEdit() {
                         middle_name: e.target.value
                       }));
                     }
-                  }), errors.middle_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                  }), errors.middle_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                     className: "invalid-feedback",
                     children: errors.middle_name[0]
                   })]
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
-                  className: "col-md-4 mb-3",
-                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
+                  className: "col-md-3 mb-3",
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "Extension Name"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                     type: "text",
                     className: "form-control ".concat(errors.extension_name ? 'is-invalid' : ''),
                     value: formData.extension_name,
@@ -67864,19 +68118,19 @@ var StudentsEdit = function StudentsEdit() {
                         extension_name: e.target.value
                       }));
                     }
-                  }), errors.extension_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                  }), errors.extension_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                     className: "invalid-feedback",
                     children: errors.extension_name[0]
                   })]
                 })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "row",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                   className: "col-md-6 mb-3",
-                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "First Name *"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                     type: "text",
                     className: "form-control ".concat(errors.first_name ? 'is-invalid' : ''),
                     value: formData.first_name,
@@ -67886,16 +68140,16 @@ var StudentsEdit = function StudentsEdit() {
                       }));
                     },
                     required: true
-                  }), errors.first_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                  }), errors.first_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                     className: "invalid-feedback",
                     children: errors.first_name[0]
                   })]
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                   className: "col-md-6 mb-3",
-                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                     className: "form-label",
                     children: "Last Name *"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                     type: "text",
                     className: "form-control ".concat(errors.last_name ? 'is-invalid' : ''),
                     value: formData.last_name,
@@ -67905,17 +68159,17 @@ var StudentsEdit = function StudentsEdit() {
                       }));
                     },
                     required: true
-                  }), errors.last_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                  }), errors.last_name && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                     className: "invalid-feedback",
                     children: errors.last_name[0]
                   })]
                 })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "mb-3",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                   className: "form-label",
                   children: "Email *"
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                   type: "email",
                   className: "form-control ".concat(errors.email ? 'is-invalid' : ''),
                   value: formData.email,
@@ -67925,16 +68179,16 @@ var StudentsEdit = function StudentsEdit() {
                     }));
                   },
                   required: true
-                }), errors.email && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                }), errors.email && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                   className: "invalid-feedback",
                   children: errors.email[0]
                 })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "mb-3",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                   className: "form-label",
                   children: "Phone"
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                   type: "tel",
                   className: "form-control ".concat(errors.phone ? 'is-invalid' : ''),
                   value: formData.phone,
@@ -67944,16 +68198,16 @@ var StudentsEdit = function StudentsEdit() {
                     }));
                   }
                 })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "row",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                   className: "col-md-6",
-                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                     className: "mb-3",
-                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                       className: "form-label",
                       children: "Date of Birth *"
-                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                       type: "date",
                       className: "form-control ".concat(errors.date_of_birth ? 'is-invalid' : ''),
                       value: formData.date_of_birth,
@@ -67963,19 +68217,19 @@ var StudentsEdit = function StudentsEdit() {
                         }));
                       },
                       required: true
-                    }), errors.date_of_birth && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                    }), errors.date_of_birth && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                       className: "invalid-feedback",
                       children: errors.date_of_birth[0]
                     })]
                   })
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                   className: "col-md-6",
-                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                     className: "mb-3",
-                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                       className: "form-label",
                       children: "Enrollment Date *"
-                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("input", {
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("input", {
                       type: "date",
                       className: "form-control ".concat(errors.enrollment_date ? 'is-invalid' : ''),
                       value: formData.enrollment_date,
@@ -67985,22 +68239,22 @@ var StudentsEdit = function StudentsEdit() {
                         }));
                       },
                       required: true
-                    }), errors.enrollment_date && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                    }), errors.enrollment_date && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                       className: "invalid-feedback",
                       children: errors.enrollment_date[0]
                     })]
                   })
                 })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                 className: "row",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                   className: "col-md-6",
-                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                     className: "mb-3",
-                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                       className: "form-label",
                       children: "Course *"
-                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("select", {
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
                       className: "form-select ".concat(errors.course_id ? 'is-invalid' : ''),
                       value: formData.course_id,
                       onChange: function onChange(e) {
@@ -68009,28 +68263,28 @@ var StudentsEdit = function StudentsEdit() {
                         }));
                       },
                       required: true,
-                      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                         value: "",
                         children: "Select Course"
                       }), courses.map(function (c) {
-                        return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                        return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                           value: c.id,
                           children: c.name
                         }, c.id);
                       })]
-                    }), errors.course_id && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                    }), errors.course_id && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                       className: "invalid-feedback",
                       children: errors.course_id[0]
                     })]
                   })
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                   className: "col-md-6",
-                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+                  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
                     className: "mb-3",
-                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
+                    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
                       className: "form-label",
                       children: "Status *"
-                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("select", {
+                    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("select", {
                       className: "form-select ".concat(errors.status ? 'is-invalid' : ''),
                       value: formData.status,
                       onChange: function onChange(e) {
@@ -68039,73 +68293,32 @@ var StudentsEdit = function StudentsEdit() {
                         }));
                       },
                       required: true,
-                      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                         value: "active",
                         children: "Active"
-                      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                         value: "inactive",
                         children: "Inactive"
-                      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
+                      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("option", {
                         value: "suspended",
                         children: "Suspended"
                       })]
-                    }), errors.status && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
+                    }), errors.status && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("div", {
                       className: "invalid-feedback",
                       children: errors.status[0]
                     })]
                   })
                 })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
-                className: "mb-3",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("label", {
-                  className: "form-label",
-                  children: "Academic Year"
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("select", {
-                  className: "form-select ".concat(errors.academic_year_id ? 'is-invalid' : ''),
-                  value: formData.academic_year_id,
-                  onChange: function onChange(e) {
-                    return setFormData(_objectSpread(_objectSpread({}, formData), {}, {
-                      academic_year_id: e.target.value
-                    }));
-                  },
-                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
-                    value: "",
-                    children: "Select Academic Year"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
-                    value: "2020-2021",
-                    children: "S.Y. 2020-2021"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
-                    value: "2021-2022",
-                    children: "S.Y. 2021-2022"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
-                    value: "2022-2023",
-                    children: "S.Y. 2022-2023"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
-                    value: "2023-2024",
-                    children: "S.Y. 2023-2024"
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
-                    value: "2024-2025",
-                    children: "S.Y. 2024-2025"
-                  }), academicYears.map(function (y) {
-                    return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("option", {
-                      value: y.id,
-                      children: y.name
-                    }, y.id);
-                  })]
-                }), errors.academic_year_id && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
-                  className: "invalid-feedback",
-                  children: errors.academic_year_id[0]
-                })]
-              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
-                className: "d-flex justify-content-end gap-2",
-                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("button", {
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
+                className: "mb-3 d-flex justify-content-end gap-2",
+                children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("button", {
                   type: "button",
                   className: "btn btn-secondary",
                   onClick: function onClick() {
                     return navigate('/students');
                   },
                   children: "Cancel"
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("button", {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("button", {
                   type: "submit",
                   className: "btn btn-primary",
                   disabled: loading,

@@ -19,6 +19,7 @@ class Student extends Model
         'phone',
         'date_of_birth',
         'enrollment_date',
+        'year_level',
         'status',
         'archived',
         'department_id',

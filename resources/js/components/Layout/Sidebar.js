@@ -17,8 +17,7 @@ const Sidebar = () => {
     { path: '/courses', icon: 'fas fa-book', label: 'Courses' },
       { path: '/departments', icon: 'fas fa-building', label: 'Departments' },
       { path: '/academic-years', icon: 'fas fa-calendar-alt', label: 'Academic Years' },
-      { path: '/reports', icon: 'fas fa-chart-bar', label: 'Reports' },
-    { path: '/profile', icon: 'fas fa-user', label: 'Profile' }
+    { path: '/reports', icon: 'fas fa-chart-bar', label: 'Reports' }
   ];
 
   return (

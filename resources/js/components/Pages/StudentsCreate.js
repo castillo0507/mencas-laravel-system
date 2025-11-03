@@ -13,6 +13,7 @@ const StudentsCreate = () => {
   const [formData, setFormData] = useState({
     course_id: '',
     department_id: '',
+    year_level: '',
     academic_year_id: '',
     student_id: '',
     first_name: '',
@@ -166,7 +167,7 @@ const StudentsCreate = () => {
                 </div>
 
                 <div className="row mb-3">
-                  <div className="col-md-4 mb-3">
+                  <div className="col-md-3 mb-3">
                     <label className="form-label">Academic Year</label>
                     <select className={`form-select ${errors.academic_year_id ? 'is-invalid' : ''}`} value={formData.academic_year_id} onChange={(e) => setFormData({...formData, academic_year_id: e.target.value})}>
                       <option value="">Select Academic Year</option>
@@ -179,13 +180,25 @@ const StudentsCreate = () => {
                     {errors.academic_year_id && <div className="invalid-feedback">{errors.academic_year_id[0]}</div>}
                   </div>
 
-                  <div className="col-md-4 mb-3">
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Year Level</label>
+                    <select className={`form-select ${errors.year_level ? 'is-invalid' : ''}`} value={formData.year_level} onChange={(e) => setFormData({...formData, year_level: e.target.value})}>
+                      <option value="">Select Year Level</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </select>
+                    {errors.year_level && <div className="invalid-feedback">{errors.year_level[0]}</div>}
+                  </div>
+
+                  <div className="col-md-3 mb-3">
                     <label className="form-label">Middle Name</label>
                     <input type="text" className={`form-control ${errors.middle_name ? 'is-invalid' : ''}`} value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
                     {errors.middle_name && <div className="invalid-feedback">{errors.middle_name[0]}</div>}
                   </div>
 
-                  <div className="col-md-4 mb-3">
+                  <div className="col-md-3 mb-3">
                     <label className="form-label">Extension Name</label>
                     <input type="text" className={`form-control ${errors.extension_name ? 'is-invalid' : ''}`} value={formData.extension_name} onChange={(e) => setFormData({...formData, extension_name: e.target.value})} />
                     {errors.extension_name && <div className="invalid-feedback">{errors.extension_name[0]}</div>}

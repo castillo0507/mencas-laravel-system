@@ -16,7 +16,7 @@ use App\Http\Controllers\AuthController;
 
 // React SPA route - catch all routes and serve React app
 Route::get('/{any}', function () {
-    return view('spa');
+    return view('welcome');
 })->where('any', '.*');
 
 // All routes handled by React SPA

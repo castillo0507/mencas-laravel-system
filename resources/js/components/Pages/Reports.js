@@ -43,13 +43,41 @@ const Reports = () => {
     setStudentsLoading(true);
     setStudentsError(null);
     try {
+      // Map client filter keys to API expected keys
+      const apiParams = {};
+      if (params.department) apiParams.department_id = params.department;
+      if (params.course) apiParams.course_id = params.course;
+      if (params.year_level) apiParams.year_level = params.year_level;
+      if (params.search) apiParams.search = params.search;
+
       // Try API first
-      const response = await axios.get('/api/students', { params });
-      if (response.data && response.data.success) {
-        setStudents(response.data.data || []);
-      } else if (response.data && Array.isArray(response.data)) {
-        // fallback if API returns array
-        setStudents(response.data || []);
+      const response = await axios.get('/api/students', { params: apiParams });
+
+      // API returns { data: [...], meta: {...} }
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          setStudents(response.data || []);
+        } else if (Array.isArray(response.data.data)) {
+          const list = response.data.data || [];
+          // If server returned no students but user requested a year_level, try client-side fallback
+          if (list.length === 0 && params && params.year_level) {
+            // Server returned no results for this year_level filter. Try fetching a larger unfiltered set
+            // then apply client-side year parsing to show matches. This is a fallback when year_level isn't stored on the server.
+            try {
+              const allResp = await axios.get('/api/students', { params: { per_page: 1000 } });
+              const allList = Array.isArray(allResp.data?.data) ? allResp.data.data : (Array.isArray(allResp.data) ? allResp.data : []);
+              const fallback = allList.filter(ss => String(renderYearLevel(ss)) === String(params.year_level));
+              setStudents(fallback);
+            } catch (err) {
+              // final fallback: empty
+              setStudents([]);
+            }
+          } else {
+            setStudents(list);
+          }
+        } else {
+          setStudents([]);
+        }
       } else {
         setStudents([]);
       }
@@ -95,6 +123,65 @@ const Reports = () => {
     const empty = { department: '', course: '', year_level: '' };
     setStudentFilters(empty);
     fetchStudents(empty);
+  };
+
+  // Render a numeric year level (1-4). Prefer explicit year_level on the student record.
+  // If missing, attempt to parse a single-digit year (1-4) from academicYear fields or dashboard mappings.
+  const renderYearLevel = (s) => {
+    // direct numeric year_level (allow string or number)
+    if (s?.year_level || s?.year_level === 0) {
+      const v = String(s.year_level).trim();
+      if (/^[1-4]$/.test(v)) return v;
+    }
+
+    // Collect candidate strings to search for patterns
+    const candidates = [
+      s?.academicYear?.year,
+      s?.academicYear?.name,
+      s?.academic_year || s?.academicYear || s?.academic_year_id,
+      dashboardData?.academic_years?.find(y => y.id === s.academic_year_id)?.year,
+      dashboardData?.academic_years?.find(y => y.id === s.academic_year_id)?.name,
+      s?.course?.name,
+      s?.course_name,
+      s?.year_level_label,
+    ].filter(Boolean).map(c => String(c));
+
+    const wordMap = {
+      'first': '1', '1st': '1', 'one': '1',
+      'second': '2', '2nd': '2', 'two': '2',
+      'third': '3', '3rd': '3', 'three': '3',
+      'fourth': '4', '4th': '4', 'four': '4'
+    };
+
+    for (const str of candidates) {
+      // look for explicit patterns like 'Year 1', '1st Year', 'Level 2'
+      const m1 = str.match(/(?:year|yr|level|lvl)\s*[#:]*\s*([1-4])\b/i);
+      if (m1) return m1[1];
+
+      // look for ordinal like '1st', '2nd'
+      const m2 = str.match(/\b([1-4])(st|nd|rd|th)\b/i);
+      if (m2) return m2[1];
+
+      // look for standalone digit 1-4
+      const m3 = str.match(/\b([1-4])\b/);
+      if (m3) return m3[1];
+
+      // look for word form e.g., 'First Year'
+      for (const [word, num] of Object.entries(wordMap)) {
+        if (new RegExp('\\b' + word + '\\b', 'i').test(str)) return num;
+      }
+    }
+
+    // As a final fallback, try to inspect any numeric-looking property anywhere on the student object
+    try {
+      const flat = JSON.stringify(s);
+      const mf = flat.match(/\b([1-4])\b/);
+      if (mf) return mf[1];
+    } catch (e) {
+      // ignore
+    }
+
+    return '-';
   };
 
   if (loading) {
@@ -388,7 +475,7 @@ const Reports = () => {
                         <label className="form-label">Year Level</label>
                         <select className="form-select" value={studentFilters.year_level} onChange={e => setStudentFilters(s => ({ ...s, year_level: e.target.value }))}>
                           <option value="">All</option>
-                          {[1,2,3,4,5].map(y => (
+                          {[1,2,3,4].map(y => (
                             <option key={y} value={y}>{y}</option>
                           ))}
                         </select>
@@ -415,7 +502,7 @@ const Reports = () => {
                               <th>Name</th>
                               <th>Department</th>
                               <th>Course</th>
-                              <th>Year</th>
+                              <th>Year Level</th>
                               <th>Status</th>
                             </tr>
                           </thead>
@@ -425,7 +512,7 @@ const Reports = () => {
                                 <td>{s.name || `${s.first_name || ''} ${s.last_name || ''}`}</td>
                                 <td>{s.department?.name || s.department_name || (dashboardData?.departments?.find(d => d.id === s.department_id)?.name) || '-'}</td>
                                 <td>{s.course?.name || s.course_name || (dashboardData?.courses?.find(c => c.id === s.course_id)?.name) || '-'}</td>
-                                <td>{s.academicYear?.name || s.year_level || (dashboardData?.academic_years?.find(y => y.id === s.academic_year_id)?.name) || '-'}</td>
+                                <td>{renderYearLevel(s)}</td>
                                 <td>{s.status || '-'}</td>
                               </tr>
                             ))}
