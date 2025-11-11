@@ -324,61 +324,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="col-md-4">
-          <div className="card border-0 shadow-sm mb-4">
-            <div className="card-header bg-white border-bottom">
-              <h5 className="mb-0 fw-semibold">Recent Notifications</h5>
-            </div>
-            <div className="card-body">
-              {notifications.length > 0 ? (
-                <ul className="list-group list-group-flush">
-                  {notifications.map((n) => (
-                    <li key={n.id} className="list-group-item">
-                      <div className="d-flex justify-content-between">
-                        <div>
-                          <div className="fw-semibold">{n.title}</div>
-                          <small className="text-muted">{n.type}</small>
-                        </div>
-                        <small className="text-muted">{new Date(n.time).toLocaleString()}</small>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-center py-4 text-muted">
-                  <i className="fas fa-bell fa-3x mb-3 opacity-25"></i>
-                  <p>No notifications yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-bottom">
-              <h5 className="mb-0 fw-semibold">Quick Actions</h5>
-            </div>
-            <div className="card-body">
-              <div className="d-grid gap-2">
-                <a href="/students" className="btn btn-outline-primary">
-                  <i className="fas fa-user-plus me-2"></i>
-                  Add Student
-                </a>
-                <a href="/faculty" className="btn btn-outline-success">
-                  <i className="fas fa-user-tie me-2"></i>
-                  Add Faculty
-                </a>
-                <a href="/courses" className="btn btn-outline-info">
-                  <i className="fas fa-book me-2"></i>
-                  Add Course
-                </a>
-                <a href="/reports" className="btn btn-outline-secondary">
-                  <i className="fas fa-chart-bar me-2"></i>
-                  View Reports
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/** Recent Notifications and Quick Actions removed per request */}
       </div>
     </div>
   );

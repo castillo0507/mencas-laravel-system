@@ -14,13 +14,17 @@ class Faculty extends Model
     protected $fillable = [
         'employee_id',
         'first_name',
+        'middle_name',
         'last_name',
         'email',
         'phone',
+        'gender',
         'position',
         'department_id',
         'is_active',
-        'archived'
+        'archived',
+        'emergency_contact',
+        'photo'
     ];
 
     protected $casts = [
@@ -35,6 +39,12 @@ class Faculty extends Model
 
     public function getFullNameAttribute()
     {
-        return $this->first_name . ' ' . $this->last_name;
+        $parts = array_filter([
+            $this->first_name ?? null,
+            $this->middle_name ?? null,
+            $this->last_name ?? null,
+        ]);
+
+        return implode(' ', $parts);
     }
 }

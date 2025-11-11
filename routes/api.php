@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/archives', [ArchiveController::class, 'index']);
     Route::post('/archives', [ArchiveController::class, 'store']);
     Route::post('/archives/{id}/restore', [ArchiveController::class, 'restore']);
+    Route::get('/archives/{id}/download', [ArchiveController::class, 'download']);
     // lightweight archive toggles for students and faculty (avoid full-update validation when toggling)
     Route::patch('/students/{id}/archive', [StudentController::class, 'archive']);
     Route::patch('/faculty/{id}/archive', [FacultyController::class, 'archive']);

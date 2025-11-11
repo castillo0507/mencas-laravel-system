@@ -91,14 +91,28 @@ class StudentController extends Controller
             'extension_name' => 'nullable|string|max:50',
             'email' => 'required|email|unique:students,email',
             'phone' => 'nullable|string|max:15',
+            'year_level' => 'nullable|in:1,2,3,4',
+            'address' => 'nullable|string|max:1000',
+            'gender' => 'nullable|in:male,female,other',
+            'birthplace' => 'nullable|string|max:255',
             'date_of_birth' => 'nullable|date',
             'enrollment_date' => 'nullable|date',
             'status' => 'required|in:active,inactive,suspended',
             'archived' => 'boolean',
+            'guardian_name' => 'nullable|string|max:255',
+            'guardian_contact' => 'nullable|string|max:50',
+            'emergency_contact' => 'nullable|string|max:50',
+            'photo' => 'nullable|image|max:4096',
             'department_id' => 'required|exists:departments,id',
             'course_id' => 'nullable|exists:courses,id',
             'academic_year_id' => 'nullable|exists:academic_years,id',
         ]);
+
+    // Handle photo upload (store and add to validated data) before intersecting with actual columns
+    if ($request->hasFile('photo')) {
+        $path = $request->file('photo')->store('students', 'public');
+        $validated['photo'] = '/storage/' . $path;
+    }
 
     // Default academic_year_id to the active academic year if available and not provided
     if ((empty($validated['academic_year_id']) || $validated['academic_year_id'] === null) && Schema::hasTable('academic_years')) {
@@ -139,14 +153,28 @@ class StudentController extends Controller
             'extension_name' => 'nullable|string|max:50',
             'email' => 'required|email|unique:students,email,' . $id,
             'phone' => 'nullable|string|max:15',
+            'year_level' => 'nullable|in:1,2,3,4',
+            'address' => 'nullable|string|max:1000',
+            'gender' => 'nullable|in:male,female,other',
+            'birthplace' => 'nullable|string|max:255',
             'date_of_birth' => 'nullable|date',
             'enrollment_date' => 'nullable|date',
             'status' => 'required|in:active,inactive,suspended',
             'archived' => 'boolean',
+            'guardian_name' => 'nullable|string|max:255',
+            'guardian_contact' => 'nullable|string|max:50',
+            'emergency_contact' => 'nullable|string|max:50',
+            'photo' => 'nullable|image|max:4096',
             'department_id' => 'required|exists:departments,id',
             'course_id' => 'nullable|exists:courses,id',
             'academic_year_id' => 'nullable|exists:academic_years,id',
         ]);
+
+        // Handle photo upload (multipart form with _method=PUT)
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('students', 'public');
+            $validated['photo'] = '/storage/' . $path;
+        }
 
     // Only update columns that exist in the students table
     $columns = Schema::getColumnListing('students');

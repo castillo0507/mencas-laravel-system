@@ -84,12 +84,16 @@ class FacultyController extends Controller
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required|string|unique:faculty',
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:faculty',
             'phone' => 'nullable|string|max:20',
             'position' => 'required|string|max:255',
             'department_id' => 'required|exists:departments,id',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'emergency_contact' => 'nullable|string|max:50',
+            'photo' => 'nullable|image|max:4096'
         ]);
 
         if ($validator->fails()) {
@@ -99,7 +103,27 @@ class FacultyController extends Controller
             ], 422);
         }
 
-        $faculty = Faculty::create($request->all());
+        $validated = $validator->validated();
+
+        // Normalize empty strings for nullable fields to null
+        $nullableFields = ['middle_name', 'gender', 'emergency_contact', 'photo'];
+        foreach ($nullableFields as $field) {
+            if (array_key_exists($field, $validated) && $validated[$field] === '') {
+                $validated[$field] = null;
+            }
+        }
+
+        // Handle photo upload (store and add to validated data)
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('faculty', 'public');
+            $validated['photo'] = '/storage/' . $path;
+        }
+
+        // Persist only columns that exist in the faculty table to avoid SQL errors
+        $columns = \Illuminate\Support\Facades\Schema::getColumnListing('faculty');
+        $data = array_intersect_key($validated, array_flip($columns));
+
+        $faculty = Faculty::create($data);
         $faculty->load('department');
 
         return response()->json([
@@ -130,12 +154,16 @@ class FacultyController extends Controller
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required|string|unique:faculty,employee_id,' . $id,
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:faculty,email,' . $id,
             'phone' => 'nullable|string|max:20',
             'position' => 'required|string|max:255',
             'department_id' => 'required|exists:departments,id',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'emergency_contact' => 'nullable|string|max:50',
+            'photo' => 'nullable|image|max:4096'
         ]);
 
         if ($validator->fails()) {
@@ -145,7 +173,27 @@ class FacultyController extends Controller
             ], 422);
         }
 
-        $faculty->update($request->all());
+        $validated = $validator->validated();
+
+        // Normalize empty strings for nullable fields to null
+        $nullableFields = ['middle_name', 'gender', 'emergency_contact', 'photo'];
+        foreach ($nullableFields as $field) {
+            if (array_key_exists($field, $validated) && $validated[$field] === '') {
+                $validated[$field] = null;
+            }
+        }
+
+        // Handle photo upload (multipart form with _method=PUT)
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('faculty', 'public');
+            $validated['photo'] = '/storage/' . $path;
+        }
+
+        // Only update columns that exist in the faculty table
+        $columns = \Illuminate\Support\Facades\Schema::getColumnListing('faculty');
+        $data = array_intersect_key($validated, array_flip($columns));
+
+        $faculty->update($data);
         $faculty->load('department');
 
         return response()->json([

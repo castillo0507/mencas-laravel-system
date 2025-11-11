@@ -12,11 +12,9 @@ const Sidebar = () => {
   const menuItems = [
     { path: '/dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard' },
     { path: '/faculty', icon: 'fas fa-chalkboard-teacher', label: 'Faculty' },
-    { path: '/students', icon: 'fas fa-user-graduate', label: 'Students' },
-    { path: '/archives', icon: 'fas fa-archive', label: 'Archived Files' },
-    { path: '/courses', icon: 'fas fa-book', label: 'Courses' },
+  { path: '/students', icon: 'fas fa-user-graduate', label: 'Students' },
+  { path: '/courses', icon: 'fas fa-book', label: 'Courses' },
       { path: '/departments', icon: 'fas fa-building', label: 'Departments' },
-      { path: '/academic-years', icon: 'fas fa-calendar-alt', label: 'Academic Years' },
     { path: '/reports', icon: 'fas fa-chart-bar', label: 'Reports' }
   ];
 

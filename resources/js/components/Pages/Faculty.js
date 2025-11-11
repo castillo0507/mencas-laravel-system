@@ -44,7 +44,14 @@ const Faculty = () => {
         department_id: filterDepartment,
         status: filterStatus
       };
-      
+
+      // Remove empty string params so the API treats them as not-provided (show "All" behavior)
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === null || params[key] === undefined) {
+          delete params[key];
+        }
+      });
+
       const response = await axios.get('/api/faculty', { params });
       setFaculty(response.data.data || []);
       setTotalPages(response.data.meta?.last_page || 1);
@@ -188,10 +195,6 @@ const Faculty = () => {
                 <i className="fas fa-plus me-2"></i>
                 Add Faculty Member
               </button>
-              <a href="/archives" className="btn btn-outline-secondary">
-                <i className="fas fa-archive me-2"></i>
-                Archive
-              </a>
             </div>
           </div>
 
@@ -257,12 +260,21 @@ const Faculty = () => {
                     <div className="card shadow-sm h-100">
                       <div className="card-body">
                         <div className="d-flex align-items-center mb-3">
-                          <div 
-                            className="bg-primary text-white d-flex align-items-center justify-content-center me-3"
-                            style={{ width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px' }}
-                          >
-                            {member.first_name?.charAt(0)}{member.last_name?.charAt(0)}
-                          </div>
+                          {(member.photo || member.photo_url) ? (
+                            <img
+                              src={member.photo || member.photo_url}
+                              alt={`${member.first_name} ${member.last_name}`}
+                              className="me-3"
+                              style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '50%' }}
+                            />
+                          ) : (
+                            <div 
+                              className="bg-primary text-white d-flex align-items-center justify-content-center me-3"
+                              style={{ width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px' }}
+                            >
+                              {(member.first_name?.charAt(0) || '') + (member.middle_name?.charAt(0) || '') + (member.last_name?.charAt(0) || '')}
+                            </div>
+                          )}
                           <div className="flex-grow-1">
                             <h6 className="card-title mb-1">
                               {member.position} {member.first_name} {member.last_name}
@@ -300,7 +312,7 @@ const Faculty = () => {
                               className="btn btn-outline-primary btn-sm"
                               onClick={() => handleEdit(member)}
                             >
-                              View Profile
+                              <i className="fas fa-edit me-1"></i> Edit
                             </button>
                             <button 
                               className="btn btn-outline-secondary btn-sm"

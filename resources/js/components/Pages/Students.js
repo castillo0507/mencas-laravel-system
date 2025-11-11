@@ -132,9 +132,6 @@ const Students = () => {
               >
                 <i className="fas fa-plus me-2"></i>Add Student
               </button>
-              <a href="/archives" className="btn btn-outline-secondary">
-                <i className="fas fa-archive me-2"></i>Archive
-              </a>
               </div>
             </div>
 

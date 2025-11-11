@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../router-new';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -15,6 +16,12 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState('');
+  const [showActivity, setShowActivity] = useState(false);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({ theme: localStorage.getItem('app_theme') || 'light', notifications: localStorage.getItem('app_notifications') === 'true' });
 
   useEffect(() => {
     if (user) {
@@ -74,6 +81,56 @@ const Profile = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       logout();
     }
+  };
+
+  const navigate = useNavigate();
+
+  const closeActivityModal = () => {
+    setShowActivity(false);
+    setActivityLogs([]);
+  };
+
+  const clearActivity = async () => {
+    if (!window.confirm('Clear activity logs? This cannot be undone locally.')) return;
+    try {
+      // Try server-side clear if endpoint exists
+      try {
+        await axios.delete('/api/activity');
+      } catch (e) {
+        try { await axios.delete('/api/activity-log'); } catch (e2) { /* ignore */ }
+      }
+    } catch (err) {
+      // ignore server errors
+    }
+    setActivityLogs([]);
+  };
+
+  const exportActivity = () => {
+    const data = JSON.stringify(activityLogs, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-${(new Date()).toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const saveSettings = async () => {
+    // persist locally
+    localStorage.setItem('app_theme', settings.theme);
+    localStorage.setItem('app_notifications', settings.notifications ? 'true' : 'false');
+
+    // optionally persist to server if endpoint exists
+    try {
+      await axios.post('/api/user/settings', settings);
+    } catch (err) {
+      try { await axios.put('/api/user/settings', settings); } catch (e) { /* ignore */ }
+    }
+
+    setShowSettings(false);
+    // Apply theme immediately (simple implementation)
+    document.documentElement.setAttribute('data-theme', settings.theme);
   };
 
   return (
@@ -259,15 +316,35 @@ const Profile = () => {
                 </div>
                 <div className="card-body">
                   <div className="d-grid gap-2">
-                    <button className="btn btn-outline-primary">
-                      <i className="fas fa-download me-2"></i>
-                      Download Data
-                    </button>
-                    <button className="btn btn-outline-info">
+                    {/* Download Data removed as requested */}
+                    <button className="btn btn-outline-info" onClick={async () => {
+                      setShowActivity(true);
+                      setActivityLoading(true);
+                      try {
+                        // Try several possible endpoints for activity; fallback gracefully
+                        let res;
+                        try { res = await axios.get('/api/activity'); } catch (e1) {
+                          try { res = await axios.get('/api/activity-log'); } catch (e2) {
+                            try { res = await axios.get('/api/user/activity'); } catch (e3) { res = null; }
+                          }
+                        }
+                        if (res && res.data) {
+                          // Support both {data: [...]} and raw array
+                          setActivityLogs(res.data.data || res.data || []);
+                        } else {
+                          setActivityLogs([]);
+                        }
+                      } catch (err) {
+                        console.error('Error loading activity:', err);
+                        setActivityLogs([]);
+                      } finally {
+                        setActivityLoading(false);
+                      }
+                    }}>
                       <i className="fas fa-history me-2"></i>
                       Activity Log
                     </button>
-                    <button className="btn btn-outline-secondary">
+                    <button className="btn btn-outline-secondary" onClick={() => navigate('/settings')}>
                       <i className="fas fa-cog me-2"></i>
                       Settings
                     </button>
@@ -276,6 +353,80 @@ const Profile = () => {
               </div>
             </div>
           </div>
+
+          {/* Activity Log Modal */}
+          {showActivity && (
+            <div className="modal fade show" style={{ display: 'block' }} tabIndex="-1">
+              <div className="modal-dialog modal-lg">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Activity Log</h5>
+                    <button type="button" className="btn-close" onClick={closeActivityModal}></button>
+                  </div>
+                  <div className="modal-body">
+                    {activityLoading ? (
+                      <div className="text-center py-4"><div className="spinner-border" role="status"></div></div>
+                    ) : (
+                      <div>
+                        {activityLogs.length === 0 ? (
+                          <div className="text-center text-muted py-4">No activity found.</div>
+                        ) : (
+                          <ul className="list-group">
+                            {activityLogs.map((a, idx) => (
+                              <li key={idx} className="list-group-item">
+                                <div className="d-flex justify-content-between">
+                                  <div>
+                                    <div className="small text-muted">{a.created_at || a.timestamp || a.time || ''}</div>
+                                    <div>{a.message || a.action || JSON.stringify(a)}</div>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn btn-secondary" onClick={closeActivityModal}>Close</button>
+                    <button className="btn btn-outline-primary" onClick={exportActivity} disabled={activityLogs.length===0}>Export</button>
+                    <button className="btn btn-danger" onClick={clearActivity} disabled={activityLogs.length===0}>Clear</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Settings Modal */}
+          {showSettings && (
+            <div className="modal fade show" style={{ display: 'block' }} tabIndex="-1">
+              <div className="modal-dialog">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Settings</h5>
+                    <button type="button" className="btn-close" onClick={() => setShowSettings(false)}></button>
+                  </div>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label className="form-label">Theme</label>
+                      <select className="form-select" value={settings.theme} onChange={(e) => setSettings(s => ({ ...s, theme: e.target.value }))}>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                      </select>
+                    </div>
+                    <div className="form-check form-switch mb-3">
+                      <input className="form-check-input" type="checkbox" id="notifToggle" checked={settings.notifications} onChange={(e) => setSettings(s => ({ ...s, notifications: e.target.checked }))} />
+                      <label className="form-check-label" htmlFor="notifToggle">Enable notifications</label>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn btn-secondary" onClick={() => setShowSettings(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={saveSettings}>Save Settings</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -24,6 +24,14 @@ const StudentsEdit = () => {
     phone: '',
     date_of_birth: '',
     enrollment_date: '',
+    address: '',
+    gender: '',
+    birthplace: '',
+    guardian_name: '',
+    guardian_contact: '',
+    emergency_contact: '',
+    photo: null,
+    photo_preview: '',
     status: 'active',
     archived: false
   });
@@ -82,6 +90,7 @@ const StudentsEdit = () => {
         course_id: s.course_id || '',
         department_id: s.department_id || '',
         academic_year_id: s.academic_year_id || '',
+        year_level: s.year_level != null ? String(s.year_level) : '',
         student_id: s.student_id || '',
         first_name: s.first_name || '',
         middle_name: s.middle_name || '',
@@ -91,6 +100,14 @@ const StudentsEdit = () => {
         phone: s.phone || '',
         date_of_birth: s.date_of_birth ? normalizeDate(s.date_of_birth) : '',
         enrollment_date: s.enrollment_date ? normalizeDate(s.enrollment_date) : '',
+        address: s.address || '',
+        gender: s.gender || '',
+        birthplace: s.birthplace || '',
+        guardian_name: s.guardian_name || '',
+        guardian_contact: s.guardian_contact || '',
+        emergency_contact: s.emergency_contact || '',
+        photo: null,
+        photo_preview: s.photo_url || s.photo || '',
         status: s.status || 'active',
         archived: !!s.archived
       });
@@ -130,6 +147,11 @@ const StudentsEdit = () => {
         payload.academic_year_id = null;
       }
 
+      // Normalize year_level: send null when not selected
+      if (!payload.year_level || payload.year_level === '') {
+        payload.year_level = null;
+      }
+
       if (!payload.department_id && payload.course_id) {
         const selectedCourse = courses.find(c => String(c.id) === String(payload.course_id));
         if (selectedCourse && selectedCourse.department_id) {
@@ -139,7 +161,25 @@ const StudentsEdit = () => {
 
       if (!payload.department_id) payload.department_id = '';
 
-      await axios.put(`/api/students/${id}`, payload);
+      // If a photo File is present, submit as multipart/form-data with method override _method=PUT
+      if (payload.photo && payload.photo instanceof File) {
+        const fd = new FormData();
+        Object.keys(payload).forEach(key => {
+          if (key === 'photo_preview') return;
+          const val = payload[key];
+          if (val === undefined || val === null) return;
+          if (key === 'photo') return; // appended separately
+          if (typeof val === 'boolean') fd.append(key, val ? '1' : '0');
+          else fd.append(key, val);
+        });
+        fd.append('photo', payload.photo);
+        fd.append('_method', 'PUT');
+        await axios.post(`/api/students/${id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else {
+        if (payload.photo_preview) delete payload.photo_preview;
+        if (payload.photo === null) delete payload.photo;
+        await axios.put(`/api/students/${id}`, payload);
+      }
       toast.success('Student updated successfully!');
       navigate('/students');
     } catch (error) {
@@ -173,12 +213,38 @@ const StudentsEdit = () => {
             </div>
             <div className="card-body">
               <form onSubmit={handleSubmit}>
+                {/* Name row */}
+                <div className="row mb-3">
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">First Name *</label>
+                    <input type="text" className={`form-control ${errors.first_name ? 'is-invalid' : ''}`} value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
+                    {errors.first_name && <div className="invalid-feedback">{errors.first_name[0]}</div>}
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Last Name *</label>
+                    <input type="text" className={`form-control ${errors.last_name ? 'is-invalid' : ''}`} value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
+                    {errors.last_name && <div className="invalid-feedback">{errors.last_name[0]}</div>}
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Middle Name</label>
+                    <input type="text" className={`form-control ${errors.middle_name ? 'is-invalid' : ''}`} value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
+                    {errors.middle_name && <div className="invalid-feedback">{errors.middle_name[0]}</div>}
+                  </div>
+                  <div className="col-md-3 mb-3">
+                    <label className="form-label">Extension Name</label>
+                    <input type="text" className={`form-control ${errors.extension_name ? 'is-invalid' : ''}`} value={formData.extension_name} onChange={(e) => setFormData({...formData, extension_name: e.target.value})} />
+                    {errors.extension_name && <div className="invalid-feedback">{errors.extension_name[0]}</div>}
+                  </div>
+                </div>
+
+                {/* Student ID */}
                 <div className="mb-3">
                   <label className="form-label">Student ID *</label>
                   <input type="text" className={`form-control ${errors.student_id ? 'is-invalid' : ''}`} value={formData.student_id} onChange={(e) => setFormData({...formData, student_id: e.target.value})} required />
                   {errors.student_id && <div className="invalid-feedback">{errors.student_id[0]}</div>}
                 </div>
 
+                {/* Academic Year, Year Level, Email, Phone */}
                 <div className="row mb-3">
                   <div className="col-md-3 mb-3">
                     <label className="form-label">Academic Year</label>
@@ -206,43 +272,19 @@ const StudentsEdit = () => {
                   </div>
 
                   <div className="col-md-3 mb-3">
-                    <label className="form-label">Middle Name</label>
-                    <input type="text" className={`form-control ${errors.middle_name ? 'is-invalid' : ''}`} value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
-                    {errors.middle_name && <div className="invalid-feedback">{errors.middle_name[0]}</div>}
+                    <label className="form-label">Email *</label>
+                    <input type="email" className={`form-control ${errors.email ? 'is-invalid' : ''}`} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
+                    {errors.email && <div className="invalid-feedback">{errors.email[0]}</div>}
                   </div>
 
                   <div className="col-md-3 mb-3">
-                    <label className="form-label">Extension Name</label>
-                    <input type="text" className={`form-control ${errors.extension_name ? 'is-invalid' : ''}`} value={formData.extension_name} onChange={(e) => setFormData({...formData, extension_name: e.target.value})} />
-                    {errors.extension_name && <div className="invalid-feedback">{errors.extension_name[0]}</div>}
+                    <label className="form-label">Phone</label>
+                    <input type="tel" className={`form-control ${errors.phone ? 'is-invalid' : ''}`} value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
                   </div>
                 </div>
 
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">First Name *</label>
-                    <input type="text" className={`form-control ${errors.first_name ? 'is-invalid' : ''}`} value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
-                    {errors.first_name && <div className="invalid-feedback">{errors.first_name[0]}</div>}
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Last Name *</label>
-                    <input type="text" className={`form-control ${errors.last_name ? 'is-invalid' : ''}`} value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
-                    {errors.last_name && <div className="invalid-feedback">{errors.last_name[0]}</div>}
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Email *</label>
-                  <input type="email" className={`form-control ${errors.email ? 'is-invalid' : ''}`} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
-                  {errors.email && <div className="invalid-feedback">{errors.email[0]}</div>}
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Phone</label>
-                  <input type="tel" className={`form-control ${errors.phone ? 'is-invalid' : ''}`} value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
-                </div>
-
-                <div className="row">
+                {/* Dates */}
+                <div className="row mb-3">
                   <div className="col-md-6">
                     <div className="mb-3">
                       <label className="form-label">Date of Birth *</label>
@@ -259,6 +301,57 @@ const StudentsEdit = () => {
                   </div>
                 </div>
 
+                {/* Gender, Birthplace, Address + Photo */}
+                <div className="row mb-3">
+                  <div className="col-md-8">
+                    <div className="row">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label d-block">Gender</label>
+                        <div className="form-check form-check-inline">
+                          <input className="form-check-input" type="radio" name="genderEdit" id="genderMaleEdit2" value="male" checked={formData.gender === 'male'} onChange={(e) => setFormData(s => ({ ...s, gender: e.target.value }))} />
+                          <label className="form-check-label" htmlFor="genderMaleEdit2">Male</label>
+                        </div>
+                        <div className="form-check form-check-inline">
+                          <input className="form-check-input" type="radio" name="genderEdit" id="genderFemaleEdit2" value="female" checked={formData.gender === 'female'} onChange={(e) => setFormData(s => ({ ...s, gender: e.target.value }))} />
+                          <label className="form-check-label" htmlFor="genderFemaleEdit2">Female</label>
+                        </div>
+                      </div>
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Birthplace</label>
+                        <input type="text" className={`form-control ${errors.birthplace ? 'is-invalid' : ''}`} value={formData.birthplace} onChange={(e) => setFormData({...formData, birthplace: e.target.value})} />
+                        {errors.birthplace && <div className="invalid-feedback">{errors.birthplace[0]}</div>}
+                      </div>
+                      <div className="col-md-12 mb-3">
+                        <label className="form-label">Address</label>
+                        <textarea className={`form-control ${errors.address ? 'is-invalid' : ''}`} rows="3" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
+                        {errors.address && <div className="invalid-feedback">{errors.address[0]}</div>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="card p-3 text-center">
+                      <div className="mb-2">
+                        <strong>Upload Student Photo</strong>
+                      </div>
+                      <div style={{ minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #e9ecef', borderRadius: 6, marginBottom: 8 }}>
+                        {formData.photo_preview ? (
+                          <img src={formData.photo_preview} alt="preview" style={{ maxHeight: 120, maxWidth: '100%', objectFit: 'cover', borderRadius: 4 }} />
+                        ) : (
+                          <div className="text-muted">No photo selected</div>
+                        )}
+                      </div>
+                      <input type="file" accept="image/*" className="form-control form-control-sm" onChange={(e) => {
+                        const f = e.target.files && e.target.files[0];
+                        if (f) {
+                          const preview = URL.createObjectURL(f);
+                          setFormData(s => ({ ...s, photo: f, photo_preview: preview }));
+                        }
+                      }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Course & Status */}
                 <div className="row">
                   <div className="col-md-6">
                     <div className="mb-3">
@@ -283,7 +376,26 @@ const StudentsEdit = () => {
                   </div>
                 </div>
 
-                <div className="mb-3 d-flex justify-content-end gap-2">
+                {/* Guardian & Emergency contacts */}
+                <div className="row mb-3">
+                  <div className="col-md-5">
+                    <label className="form-label">Guardian Name</label>
+                    <input type="text" className={`form-control ${errors.guardian_name ? 'is-invalid' : ''}`} value={formData.guardian_name} onChange={(e) => setFormData({...formData, guardian_name: e.target.value})} />
+                    {errors.guardian_name && <div className="invalid-feedback">{errors.guardian_name[0]}</div>}
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label">Guardian Contact</label>
+                    <input type="text" className={`form-control ${errors.guardian_contact ? 'is-invalid' : ''}`} value={formData.guardian_contact} onChange={(e) => setFormData({...formData, guardian_contact: e.target.value})} />
+                    {errors.guardian_contact && <div className="invalid-feedback">{errors.guardian_contact[0]}</div>}
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Emergency Contact</label>
+                    <input type="text" className={`form-control ${errors.emergency_contact ? 'is-invalid' : ''}`} value={formData.emergency_contact} onChange={(e) => setFormData({...formData, emergency_contact: e.target.value})} />
+                    {errors.emergency_contact && <div className="invalid-feedback">{errors.emergency_contact[0]}</div>}
+                  </div>
+                </div>
+
+                <div className="d-flex justify-content-end gap-2">
                   <button type="button" className="btn btn-secondary" onClick={() => navigate('/students')}>Cancel</button>
                   <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Updating...' : 'Update Student'}</button>
                 </div>

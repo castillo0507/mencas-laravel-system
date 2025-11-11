@@ -13,12 +13,19 @@ import FacultyEdit from './components/Pages/FacultyEdit';
 import Students from './components/Pages/Students';
 import StudentsCreate from './components/Pages/StudentsCreate';
 import StudentsEdit from './components/Pages/StudentsEdit';
+import StudentsView from './components/Pages/StudentsView';
 import Courses from './components/Pages/Courses';
 import Departments from './components/Pages/Departments';
 import Reports from './components/Pages/Reports';
+import ReportsStudents from './components/Pages/ReportsStudents';
+import ReportsFaculty from './components/Pages/ReportsFaculty';
+import ReportsCourses from './components/Pages/ReportsCourses';
+import StudentsByCourse from './components/Pages/StudentsByCourse';
 import Profile from './components/Pages/Profile';
 import ArchiveFiles from './components/Pages/ArchiveFiles';
 import AcademicYears from './components/Pages/AcademicYears';
+import Settings from './components/Pages/Settings';
+import FacultyView from './components/Pages/FacultyView';
 
 // Auth Context //
 const AuthContext = createContext();
@@ -176,15 +183,24 @@ export default function AppRouter() {
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/faculty" element={<Faculty />} />
                     <Route path="/faculty/create" element={<FacultyCreate />} />
+                    <Route path="/faculty/:id" element={<FacultyView />} />
                     <Route path="/faculty/:id/edit" element={<FacultyEdit />} />
                     <Route path="/students" element={<Students />} />
                     <Route path="/students/create" element={<StudentsCreate />} />
+                    <Route path="/students/:id" element={<StudentsView />} />
                     <Route path="/students/:id/edit" element={<StudentsEdit />} />
                     <Route path="/courses" element={<Courses />} />
                     <Route path="/departments" element={<Departments />} />
                     <Route path="/academic-years" element={<AcademicYears />} />
+                    <Route path="/settings/academic-years" element={<AcademicYears />} />
                     <Route path="/reports" element={<Reports />} />
+                    <Route path="/reports/students" element={<ReportsStudents />} />
+                    <Route path="/reports/faculty" element={<ReportsFaculty />} />
+                    <Route path="/reports/courses" element={<ReportsCourses />} />
+                    <Route path="/reports/courses/:id" element={<StudentsByCourse />} />
+                    {/* Departments report removed from routes (handled elsewhere or deprecated) */}
                     <Route path="/profile" element={<Profile />} />
+                    <Route path="/settings" element={<Settings />} />
                     <Route path="/archives" element={<ArchiveFiles />} />
                   </Routes>
                 </Layout>

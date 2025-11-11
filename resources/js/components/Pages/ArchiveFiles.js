@@ -62,12 +62,36 @@ export default function ArchiveFiles() {
   };
 
   const handleDownload = (item) => {
-    // Placeholder download action — if archive has file_url
-    if (item.file_url) {
-      window.open(item.file_url, '_blank');
-    } else {
-      toast.info('No file to download for this archive');
-    }
+    // Always request the server-generated PDF for consistent output (Personal + Academic info)
+    const doDownloadBlob = (blobData, filename) => {
+      const url = window.URL.createObjectURL(new Blob([blobData]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename || 'archive.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    };
+
+    (async () => {
+      try {
+        // prefer server endpoint which generates a standardized PDF
+        const res = await axios.get(`/api/archives/${item.id}/download`, { responseType: 'blob' });
+        const cd = res.headers['content-disposition'] || '';
+        let filename = item.title || `archive-${item.id}.pdf`;
+        const m = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(cd);
+        if (m && m[1]) filename = m[1].replace(/['\"]/g, '');
+        // ensure .pdf extension
+        if (!/\.pdf$/i.test(filename)) filename = filename + '.pdf';
+        doDownloadBlob(res.data, filename);
+      } catch (error) {
+        console.error('Archive download error', error);
+        // If server returns JSON with a message, show it
+        const msg = error?.response?.data?.message || error.message || 'Unable to download archive';
+        toast.error(msg);
+      }
+    })();
   };
 
   return (

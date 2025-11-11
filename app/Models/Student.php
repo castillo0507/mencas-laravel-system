@@ -17,14 +17,31 @@ class Student extends Model
         'extension_name',
         'email',
         'phone',
+        'address',
+        'gender',
+        'birthplace',
         'date_of_birth',
         'enrollment_date',
         'year_level',
         'status',
         'archived',
+        'guardian_name',
+        'guardian_contact',
+        'emergency_contact',
+        'photo',
         'department_id',
         'course_id',
         'academic_year_id',
+    ];
+
+    /**
+     * Attribute casting
+     */
+    protected $casts = [
+        'archived' => 'boolean',
+        // Return date-only strings (YYYY-MM-DD) for API responses so <input type="date"> works reliably
+        'date_of_birth' => 'date:Y-m-d',
+        'enrollment_date' => 'date:Y-m-d',
     ];
 
     public function department()
